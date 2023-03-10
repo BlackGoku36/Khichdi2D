@@ -62,7 +62,6 @@ pub fn init(app: *App) !void {
         .buffers = &.{vertex_buffer_layout},
     });
 
-
     const pipeline_desc = gpu.RenderPipeline.Descriptor{
         .fragment = &fragment,
         .vertex = vertex,
