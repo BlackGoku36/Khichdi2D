@@ -11,11 +11,7 @@ pub const Vertex = extern struct {
     col: @Vector(4, f32),
 };
 
-const vertices = [_]Vertex{
-    .{.pos = .{ 0.0, 0.5, 0.1, 1.0 }, .col = .{1.0, 1.0, 0.0, 1.0}},
-    .{.pos = .{ -0.5, -0.5, 0.1, 1.0 }, .col = .{1.0, 1.0, 0.0, 1.0}},
-    .{.pos = .{ 0.0, -0.5, 0.1, 1.0 }, .col = .{1.0, 1.0, 0.0, 1.0}},
-};
+var vertices: std.ArrayList(Vertex) = std.ArrayList(Vertex).init(gpa.allocator());
 
 core: mach.Core,
 pipeline: *gpu.RenderPipeline,
@@ -24,6 +20,7 @@ vertex_buffer: *gpu.Buffer,
 
 pub fn init(app: *App) !void {
     try app.core.init(gpa.allocator(), .{});
+
     app.core.setTitle("yohohoho");
 
     const shader_module = app.core.device().createShaderModuleWGSL("shader.wgsl", @embedFile("shader.wgsl"));
@@ -45,14 +42,9 @@ pub fn init(app: *App) !void {
     });
 
     const vertex_buffer = app.core.device().createBuffer(&.{
-        .usage = .{.vertex = true},
-        .size = @sizeOf(Vertex) * vertices.len,
-        .mapped_at_creation = true,
+        .usage = .{.vertex = true, .copy_dst = true},
+        .size = @sizeOf(Vertex) * 6 * 10,
     });
-
-    var vertex_mapped = vertex_buffer.getMappedRange(Vertex, 0, vertices.len);
-    std.mem.copy(Vertex, vertex_mapped.?, vertices[0..]);
-    vertex_buffer.unmap();
 
     app.vertex_buffer = vertex_buffer;
 
@@ -73,7 +65,18 @@ pub fn init(app: *App) !void {
     shader_module.release();
 }
 
+fn addRectange(x: f32, y: f32) !void {
+    try vertices.append(.{.pos = .{ x+1.0, y, 0.1, 1.0 }, .col = .{1.0, 1.0, 0.0, 1.0}});
+    try vertices.append(.{.pos = .{ x, y, 0.1, 1.0 }, .col = .{1.0, 1.0, 0.0, 1.0}});
+    try vertices.append(.{.pos = .{ x, y-1.0, 0.1, 1.0 }, .col = .{1.0, 1.0, 0.0, 1.0}});
+
+    try vertices.append(.{.pos = .{ x, y-1.0, 0.1, 1.0 }, .col = .{1.0, 1.0, 0.0, 1.0}});
+    try vertices.append(.{.pos = .{ x+1.0, y-1.0, 0.1, 1.0 }, .col = .{1.0, 1.0, 0.0, 1.0}});
+    try vertices.append(.{.pos = .{ x+1.0, y, 0.1, 1.0 }, .col = .{1.0, 1.0, 0.0, 1.0}});
+}
+
 pub fn deinit(app: *App) void {
+    vertices.deinit();
     defer _ = gpa.deinit();
     defer app.core.deinit();
 }
@@ -83,9 +86,16 @@ pub fn update(app: *App) !bool {
     while (iter.next()) |event| {
         switch (event) {
             .close => return true,
+            .key_press => |key_event|{
+                if(key_event.key == .space){
+                    try addRectange(0.0, 0.0);
+                }
+            },
             else => {},
         }
     }
+
+    app.queue.writeBuffer(app.vertex_buffer, 0, vertices.items[0..]);
 
     const back_buffer_view = app.core.swapChain().getCurrentTextureView();
     const color_attachment = gpu.RenderPassColorAttachment{
@@ -100,8 +110,8 @@ pub fn update(app: *App) !bool {
     });
     const pass = command_encoder.beginRenderPass(&render_pass_info);
     pass.setPipeline(app.pipeline);
-    pass.setVertexBuffer(0, app.vertex_buffer, 0, @sizeOf(Vertex) * vertices.len);
-    pass.draw(vertices.len, 1, 0, 0);
+    pass.setVertexBuffer(0, app.vertex_buffer, 0, @sizeOf(Vertex) * vertices.items.len);
+    pass.draw(@intCast(u32, vertices.items.len), 1, 0, 0);
     pass.end();
     pass.release();
 
