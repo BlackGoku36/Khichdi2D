@@ -65,14 +65,23 @@ pub fn init(app: *App) !void {
     shader_module.release();
 }
 
-fn addRectange(x: f32, y: f32) !void {
-    try vertices.append(.{.pos = .{ x+1.0, y, 0.1, 1.0 }, .col = .{1.0, 1.0, 0.0, 1.0}});
-    try vertices.append(.{.pos = .{ x, y, 0.1, 1.0 }, .col = .{1.0, 1.0, 0.0, 1.0}});
-    try vertices.append(.{.pos = .{ x, y-1.0, 0.1, 1.0 }, .col = .{1.0, 1.0, 0.0, 1.0}});
+fn drawFilledRectangle(app: *App, x: f32, y: f32, width: f32, height: f32) !void {
+    const window_size = app.core.size();
+    const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
+    const half_window_h = @intToFloat(f32, window_size.height) * 0.5;
+    const new_x = x / half_window_w - 1.0;
+    const new_y = 1.0 - y / half_window_h;
+    const new_width = width / half_window_w;
+    const new_height = height / half_window_h;
+    const color = [4]f32{1.0, 1.0, 0.0, 1.0};
 
-    try vertices.append(.{.pos = .{ x, y-1.0, 0.1, 1.0 }, .col = .{1.0, 1.0, 0.0, 1.0}});
-    try vertices.append(.{.pos = .{ x+1.0, y-1.0, 0.1, 1.0 }, .col = .{1.0, 1.0, 0.0, 1.0}});
-    try vertices.append(.{.pos = .{ x+1.0, y, 0.1, 1.0 }, .col = .{1.0, 1.0, 0.0, 1.0}});
+    try vertices.append(.{.pos = .{ new_x + new_width, new_y, 0.1, 1.0 }, .col = color});
+    try vertices.append(.{.pos = .{ new_x, new_y, 0.1, 1.0 }, .col = color});
+    try vertices.append(.{.pos = .{ new_x, new_y - new_height, 0.1, 1.0 }, .col = color});
+
+    try vertices.append(.{.pos = .{ new_x, new_y - new_height, 0.1, 1.0 }, .col = color});
+    try vertices.append(.{.pos = .{ new_x + new_width, new_y - new_height, 0.1, 1.0 }, .col = color});
+    try vertices.append(.{.pos = .{ new_x + new_width, new_y, 0.1, 1.0 }, .col = color});
 }
 
 pub fn deinit(app: *App) void {
@@ -81,14 +90,21 @@ pub fn deinit(app: *App) void {
     defer app.core.deinit();
 }
 
+var mouse_x: f64 = 0.0;
+var mouse_y: f64 = 0.0;
+
 pub fn update(app: *App) !bool {
     var iter = app.core.pollEvents();
     while (iter.next()) |event| {
         switch (event) {
             .close => return true,
+            .mouse_motion => |mouse_motion|{
+                mouse_x = mouse_motion.pos.x;
+                mouse_y = mouse_motion.pos.y;
+            },
             .key_press => |key_event|{
                 if(key_event.key == .space){
-                    try addRectange(0.0, 0.0);
+                    try drawFilledRectangle(app, @floatCast(f32, mouse_x), @floatCast(f32, mouse_y), 10.0, 10.0);
                 }
             },
             else => {},
