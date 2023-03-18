@@ -106,6 +106,13 @@ pub const Renderer = struct {
         back_buffer_view.release();
     }
 
+    pub fn drawRectangle(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32, thiccness: f32) !void {
+        try renderer.drawFilledRectangle(x, y, width, thiccness);
+        try renderer.drawFilledRectangle(x + width, y, thiccness, height);
+        try renderer.drawFilledRectangle(x, y + height, width, thiccness);
+        try renderer.drawFilledRectangle(x, y, thiccness, height);
+    }
+
     pub fn drawFilledRectangle(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32) !void {
         if(renderer.vertices_len >= max_vertices) return RendererError.BufferCapacityExceeded;
 

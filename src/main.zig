@@ -75,7 +75,7 @@ pub fn update(app: *App) !bool {
 
     for (rects.items) |rect|{
         app.renderer.setColor(rect.col[0], rect.col[1], rect.col[2], rect.col[3]);
-        try app.renderer.drawFilledRectangle(rect.x, rect.y, 300.0, 100.0);   
+        try app.renderer.drawRectangle(rect.x, rect.y, 300.0, 100.0, 5.0);   
     }
 
     try app.renderer.end();
