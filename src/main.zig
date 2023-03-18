@@ -73,10 +73,21 @@ pub fn update(app: *App) !bool {
 
     try app.renderer.begin();
 
-    for (rects.items) |rect|{
-        app.renderer.setColor(rect.col[0], rect.col[1], rect.col[2], rect.col[3]);
-        try app.renderer.drawRectangle(rect.x, rect.y, 300.0, 100.0, 5.0);   
-    }
+    // for (rects.items) |rect|{
+    //     app.renderer.setColor(rect.col[0], rect.col[1], rect.col[2], rect.col[3]);
+    //     try app.renderer.drawRectangle(rect.x, rect.y, 300.0, 100.0, 5.0);   
+    // }
+    app.renderer.setColor(0.235, 0.22, 0.212, 1.0);
+    try app.renderer.drawFilledRectangle(150.0, 150.0, 100.0, 100.0);
+
+    app.renderer.setColor(0.984, 0.286, 0.204, 1.0);
+    try app.renderer.drawRectangle(350.0, 150.0, 100.0, 100.0, 50.0);
+
+    app.renderer.setColor(0.722, 0.733, 0.149, 1.0);
+    try app.renderer.drawRectangle(150.0, 350.0, 100.0, 100.0, 30.0);
+
+    app.renderer.setColor(0.514, 0.647, 0.596, 1.0);
+    try app.renderer.drawFilledRectangle(350.0, 350.0, 100.0, 100.0);
 
     try app.renderer.end();
 
