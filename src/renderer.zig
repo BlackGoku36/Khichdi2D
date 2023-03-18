@@ -6,7 +6,7 @@ const RendererError = error{
     BufferCapacityExceeded,
 };
 
-const max_vertices: u32 = 6*10;
+const max_vertices: u32 = 6 * 1000;
 
 pub const Vertex = extern struct {
     pos: @Vector(4, f32),
@@ -45,7 +45,7 @@ pub const Renderer = struct {
 
         const vertex_buffer = core.device().createBuffer(&.{
             .usage = .{.vertex = true, .copy_dst = true},
-            .size = @sizeOf(Vertex) * 6 * 10,
+            .size = @sizeOf(Vertex) * max_vertices,
         });
 
         const vertex = gpu.VertexState.init(.{
