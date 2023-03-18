@@ -29,7 +29,7 @@ var mouse_x: f64 = 0.0;
 var mouse_y: f64 = 0.0;
 
 const Rect = struct {
-    x: f32, y: f32,
+    x: f32, y: f32, col: [4]f32 = [_]f32{0.0, 0.0, 0.0, 1.0},
 };
 
 var rects: std.ArrayList(Rect) = std.ArrayList(Rect).init(gpa.allocator());
@@ -44,8 +44,23 @@ pub fn update(app: *App) !bool {
                 mouse_y = mouse_motion.pos.y;
             },
             .key_press => |key_event|{
-                if(key_event.key == .space){
-                    try rects.append(Rect{.x = @floatCast(f32, mouse_x), .y = @floatCast(f32, mouse_y)});
+                if(key_event.key == .r){
+                    try rects.append(
+                        Rect{.x = @floatCast(f32, mouse_x), .y = @floatCast(f32, mouse_y),
+                            .col = [_]f32{1.0, 0.0, 0.0, 1.0}}
+                    );
+                }
+                else if(key_event.key == .g){
+                    try rects.append(
+                        Rect{.x = @floatCast(f32, mouse_x), .y = @floatCast(f32, mouse_y),
+                            .col = [_]f32{0.0, 1.0, 0.0, 1.0}}
+                    );
+                }
+                else if(key_event.key == .b){
+                    try rects.append(
+                        Rect{.x = @floatCast(f32, mouse_x), .y = @floatCast(f32, mouse_y),
+                            .col = [_]f32{0.0, 0.0, 1.0, 1.0}}
+                    );
                 }
 
                 if(key_event.key == .c){
@@ -59,7 +74,8 @@ pub fn update(app: *App) !bool {
     try app.renderer.begin();
 
     for (rects.items) |rect|{
-        try app.renderer.drawFilledRectangle(rect.x, rect.y, 10.0, 10.0);   
+        app.renderer.setColor(rect.col[0], rect.col[1], rect.col[2], rect.col[3]);
+        try app.renderer.drawFilledRectangle(rect.x, rect.y, 300.0, 100.0);   
     }
 
     try app.renderer.end();

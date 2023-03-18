@@ -4,9 +4,9 @@
 
 ~~2. Make some sort of abstraction, we should be able to call `drawRect(x, y, width, height)` or something for some time and it should draw those rects.~~
 
-3. Move the rendering API to it own file.
-    ~~1. Clear up the buffer after a frame is finished, so that if rect if drawn when a button is pressed, it should only render when button is pressed.~~
-    2. Add some `setColor(R<Int>, G<Int>, B<Int>)` function for setting color. Whatever rendered after setting color should use that color.
+~~3. Move the rendering API to it own file.
+    1. Clear up the buffer after a frame is finished, so that if rect if drawn when a button is pressed, it should only render when button is pressed.
+    2. Add some `setColor(R<Int>, G<Int>, B<Int>)` function for setting color. Whatever rendered after setting color should use that color.~~
 
 4. Add Triangles.
 

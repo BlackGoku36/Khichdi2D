@@ -21,6 +21,7 @@ pub const Renderer = struct {
     vertex_buffer: *gpu.Buffer,
     vertices: [max_vertices]Vertex = undefined,
     vertices_len: u32 = 0,
+    color: [4]f32 = .{0.0, 0.0, 0.0, 0.0},
 
     pub fn init(_: std.mem.Allocator, core: *mach.Core) Renderer {
 
@@ -115,16 +116,22 @@ pub const Renderer = struct {
         const new_y = 1.0 - y / half_window_h;
         const new_width = width / half_window_w;
         const new_height = height / half_window_h;
-        const color = [4]f32{1.0, 1.0, 0.0, 1.0};
 
-        renderer.vertices[renderer.vertices_len + 0] = .{.pos = .{ new_x + new_width, new_y, 0.1, 1.0 }, .col = color};
-        renderer.vertices[renderer.vertices_len + 1] = .{.pos = .{ new_x, new_y, 0.1, 1.0 }, .col = color};
-        renderer.vertices[renderer.vertices_len + 2] = .{.pos = .{ new_x, new_y - new_height, 0.1, 1.0 }, .col = color};
+        renderer.vertices[renderer.vertices_len + 0] = .{.pos = .{ new_x + new_width, new_y, 0.1, 1.0 }, .col = renderer.color};
+        renderer.vertices[renderer.vertices_len + 1] = .{.pos = .{ new_x, new_y, 0.1, 1.0 }, .col = renderer.color};
+        renderer.vertices[renderer.vertices_len + 2] = .{.pos = .{ new_x, new_y - new_height, 0.1, 1.0 }, .col = renderer.color};
 
-        renderer.vertices[renderer.vertices_len + 3] = .{.pos = .{ new_x, new_y - new_height, 0.1, 1.0 }, .col = color};
-        renderer.vertices[renderer.vertices_len + 4] = .{.pos = .{ new_x + new_width, new_y - new_height, 0.1, 1.0 }, .col = color};
-        renderer.vertices[renderer.vertices_len + 5] = .{.pos = .{ new_x + new_width, new_y, 0.1, 1.0 }, .col = color};
+        renderer.vertices[renderer.vertices_len + 3] = .{.pos = .{ new_x, new_y - new_height, 0.1, 1.0 }, .col = renderer.color};
+        renderer.vertices[renderer.vertices_len + 4] = .{.pos = .{ new_x + new_width, new_y - new_height, 0.1, 1.0 }, .col = renderer.color};
+        renderer.vertices[renderer.vertices_len + 5] = .{.pos = .{ new_x + new_width, new_y, 0.1, 1.0 }, .col = renderer.color};
         renderer.vertices_len += 6;
+    }
+
+    pub fn setColor(renderer: *Renderer, r: f32, g: f32, b: f32, a: f32) void {
+        renderer.color[0] = r;
+        renderer.color[1] = g;
+        renderer.color[2] = b;
+        renderer.color[3] = a;
     }
 
 };
