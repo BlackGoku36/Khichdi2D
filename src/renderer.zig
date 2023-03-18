@@ -14,17 +14,15 @@ pub const Vertex = extern struct {
 };
 
 pub const Renderer = struct {
-
     core: *mach.Core,
     pipeline: *gpu.RenderPipeline,
     queue: *gpu.Queue,
     vertex_buffer: *gpu.Buffer,
     vertices: [max_vertices]Vertex = undefined,
     vertices_len: u32 = 0,
-    color: [4]f32 = .{0.0, 0.0, 0.0, 0.0},
+    color: [4]f32 = .{ 0.0, 0.0, 0.0, 0.0 },
 
     pub fn init(_: std.mem.Allocator, core: *mach.Core) Renderer {
-
         const shader_module = core.device().createShaderModuleWGSL("shader.wgsl", @embedFile("shader.wgsl"));
 
         const blend = gpu.BlendState{};
@@ -33,8 +31,8 @@ pub const Renderer = struct {
         const fragment = gpu.FragmentState.init(.{ .module = shader_module, .entry_point = "frag_main", .targets = &.{color_target} });
 
         const vertex_attributes = [_]gpu.VertexAttribute{
-            .{.format = .float32x4, .offset = @offsetOf(Vertex, "pos"), .shader_location = 0},
-            .{.format = .float32x4, .offset = @offsetOf(Vertex, "col"), .shader_location = 1},
+            .{ .format = .float32x4, .offset = @offsetOf(Vertex, "pos"), .shader_location = 0 },
+            .{ .format = .float32x4, .offset = @offsetOf(Vertex, "col"), .shader_location = 1 },
         };
 
         const vertex_buffer_layout = gpu.VertexBufferLayout.init(.{
@@ -44,7 +42,7 @@ pub const Renderer = struct {
         });
 
         const vertex_buffer = core.device().createBuffer(&.{
-            .usage = .{.vertex = true, .copy_dst = true},
+            .usage = .{ .vertex = true, .copy_dst = true },
             .size = @sizeOf(Vertex) * max_vertices,
         });
 
@@ -64,7 +62,7 @@ pub const Renderer = struct {
 
         shader_module.release();
 
-        return Renderer {
+        return Renderer{
             .core = core,
             .pipeline = pipeline,
             .queue = queue,
@@ -77,7 +75,6 @@ pub const Renderer = struct {
     }
 
     pub fn end(renderer: *Renderer) !void {
-
         renderer.queue.writeBuffer(renderer.vertex_buffer, 0, renderer.vertices[0..]);
 
         const back_buffer_view = renderer.core.swapChain().getCurrentTextureView();
@@ -107,15 +104,15 @@ pub const Renderer = struct {
     }
 
     pub fn drawRectangle(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32, thiccness: f32) !void {
-        const half_thicc: f32 = thiccness/2.0;
-        try renderer.drawFilledRectangle(x-half_thicc, y-half_thicc, width+thiccness, thiccness);
-        try renderer.drawFilledRectangle(x + width-half_thicc, y-half_thicc, thiccness, height+thiccness);
-        try renderer.drawFilledRectangle(x - half_thicc, y + height-half_thicc, width+thiccness, thiccness);
-        try renderer.drawFilledRectangle(x - half_thicc, y-half_thicc, thiccness, height+thiccness);
+        const half_thicc: f32 = thiccness / 2.0;
+        try renderer.drawFilledRectangle(x - half_thicc, y - half_thicc, width + thiccness, thiccness);
+        try renderer.drawFilledRectangle(x + width - half_thicc, y - half_thicc, thiccness, height + thiccness);
+        try renderer.drawFilledRectangle(x - half_thicc, y + height - half_thicc, width + thiccness, thiccness);
+        try renderer.drawFilledRectangle(x - half_thicc, y - half_thicc, thiccness, height + thiccness);
     }
 
     pub fn drawFilledRectangle(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32) !void {
-        if(renderer.vertices_len >= max_vertices) return RendererError.BufferCapacityExceeded;
+        if (renderer.vertices_len >= max_vertices) return RendererError.BufferCapacityExceeded;
 
         const window_size = renderer.core.size();
         const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
@@ -125,13 +122,13 @@ pub const Renderer = struct {
         const new_width = width / half_window_w;
         const new_height = height / half_window_h;
 
-        renderer.vertices[renderer.vertices_len + 0] = .{.pos = .{ new_x + new_width, new_y, 0.1, 1.0 }, .col = renderer.color};
-        renderer.vertices[renderer.vertices_len + 1] = .{.pos = .{ new_x, new_y, 0.1, 1.0 }, .col = renderer.color};
-        renderer.vertices[renderer.vertices_len + 2] = .{.pos = .{ new_x, new_y - new_height, 0.1, 1.0 }, .col = renderer.color};
+        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y, 0.1, 1.0 }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y, 0.1, 1.0 }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height, 0.1, 1.0 }, .col = renderer.color };
 
-        renderer.vertices[renderer.vertices_len + 3] = .{.pos = .{ new_x, new_y - new_height, 0.1, 1.0 }, .col = renderer.color};
-        renderer.vertices[renderer.vertices_len + 4] = .{.pos = .{ new_x + new_width, new_y - new_height, 0.1, 1.0 }, .col = renderer.color};
-        renderer.vertices[renderer.vertices_len + 5] = .{.pos = .{ new_x + new_width, new_y, 0.1, 1.0 }, .col = renderer.color};
+        renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x, new_y - new_height, 0.1, 1.0 }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height, 0.1, 1.0 }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y, 0.1, 1.0 }, .col = renderer.color };
         renderer.vertices_len += 6;
     }
 
@@ -141,5 +138,4 @@ pub const Renderer = struct {
         renderer.color[2] = b;
         renderer.color[3] = a;
     }
-
 };

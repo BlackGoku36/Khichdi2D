@@ -20,7 +20,6 @@ pub fn init(app: *App) !void {
 }
 
 pub fn deinit(app: *App) void {
-    rects.deinit();
     defer _ = gpa.deinit();
     defer app.core.deinit();
 }
@@ -28,44 +27,14 @@ pub fn deinit(app: *App) void {
 var mouse_x: f64 = 0.0;
 var mouse_y: f64 = 0.0;
 
-const Rect = struct {
-    x: f32, y: f32, col: [4]f32 = [_]f32{0.0, 0.0, 0.0, 1.0},
-};
-
-var rects: std.ArrayList(Rect) = std.ArrayList(Rect).init(gpa.allocator());
-
 pub fn update(app: *App) !bool {
     var iter = app.core.pollEvents();
     while (iter.next()) |event| {
         switch (event) {
             .close => return true,
-            .mouse_motion => |mouse_motion|{
+            .mouse_motion => |mouse_motion| {
                 mouse_x = mouse_motion.pos.x;
                 mouse_y = mouse_motion.pos.y;
-            },
-            .key_press => |key_event|{
-                if(key_event.key == .r){
-                    try rects.append(
-                        Rect{.x = @floatCast(f32, mouse_x), .y = @floatCast(f32, mouse_y),
-                            .col = [_]f32{1.0, 0.0, 0.0, 1.0}}
-                    );
-                }
-                else if(key_event.key == .g){
-                    try rects.append(
-                        Rect{.x = @floatCast(f32, mouse_x), .y = @floatCast(f32, mouse_y),
-                            .col = [_]f32{0.0, 1.0, 0.0, 1.0}}
-                    );
-                }
-                else if(key_event.key == .b){
-                    try rects.append(
-                        Rect{.x = @floatCast(f32, mouse_x), .y = @floatCast(f32, mouse_y),
-                            .col = [_]f32{0.0, 0.0, 1.0, 1.0}}
-                    );
-                }
-
-                if(key_event.key == .c){
-                    rects.clearRetainingCapacity();
-                }
             },
             else => {},
         }
@@ -73,10 +42,6 @@ pub fn update(app: *App) !bool {
 
     try app.renderer.begin();
 
-    // for (rects.items) |rect|{
-    //     app.renderer.setColor(rect.col[0], rect.col[1], rect.col[2], rect.col[3]);
-    //     try app.renderer.drawRectangle(rect.x, rect.y, 300.0, 100.0, 5.0);   
-    // }
     app.renderer.setColor(0.235, 0.22, 0.212, 1.0);
     try app.renderer.drawFilledRectangle(150.0, 150.0, 100.0, 100.0);
 
