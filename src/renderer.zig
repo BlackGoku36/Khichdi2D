@@ -107,10 +107,11 @@ pub const Renderer = struct {
     }
 
     pub fn drawRectangle(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32, thiccness: f32) !void {
-        try renderer.drawFilledRectangle(x, y, width, thiccness);
-        try renderer.drawFilledRectangle(x + width, y, thiccness, height);
-        try renderer.drawFilledRectangle(x, y + height, width, thiccness);
-        try renderer.drawFilledRectangle(x, y, thiccness, height);
+        const half_thicc: f32 = thiccness/2.0;
+        try renderer.drawFilledRectangle(x-half_thicc, y-half_thicc, width+thiccness, thiccness);
+        try renderer.drawFilledRectangle(x + width-half_thicc, y-half_thicc, thiccness, height+thiccness);
+        try renderer.drawFilledRectangle(x - half_thicc, y + height-half_thicc, width+thiccness, thiccness);
+        try renderer.drawFilledRectangle(x - half_thicc, y-half_thicc, thiccness, height+thiccness);
     }
 
     pub fn drawFilledRectangle(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32) !void {
