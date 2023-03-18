@@ -20,13 +20,19 @@ pub fn init(app: *App) !void {
 }
 
 pub fn deinit(app: *App) void {
-    app.renderer.deinit();
+    rects.deinit();
     defer _ = gpa.deinit();
     defer app.core.deinit();
 }
 
 var mouse_x: f64 = 0.0;
 var mouse_y: f64 = 0.0;
+
+const Rect = struct {
+    x: f32, y: f32,
+};
+
+var rects: std.ArrayList(Rect) = std.ArrayList(Rect).init(gpa.allocator());
 
 pub fn update(app: *App) !bool {
     var iter = app.core.pollEvents();
@@ -39,14 +45,24 @@ pub fn update(app: *App) !bool {
             },
             .key_press => |key_event|{
                 if(key_event.key == .space){
-                    try app.renderer.drawFilledRectangle(@floatCast(f32, mouse_x), @floatCast(f32, mouse_y), 10.0, 10.0);
+                    try rects.append(Rect{.x = @floatCast(f32, mouse_x), .y = @floatCast(f32, mouse_y)});
+                }
+
+                if(key_event.key == .c){
+                    rects.clearRetainingCapacity();
                 }
             },
             else => {},
         }
     }
 
-    try app.renderer.render();
+    try app.renderer.begin();
+
+    for (rects.items) |rect|{
+        try app.renderer.drawFilledRectangle(rect.x, rect.y, 10.0, 10.0);   
+    }
+
+    try app.renderer.end();
 
     return false;
 }

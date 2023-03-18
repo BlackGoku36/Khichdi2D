@@ -2,6 +2,12 @@ const std = @import("std");
 const mach = @import("mach");
 const gpu = @import("gpu");
 
+const RendererError = error{
+    BufferCapacityExceeded,
+};
+
+const max_vertices: u32 = 6*10;
+
 pub const Vertex = extern struct {
     pos: @Vector(4, f32),
     col: @Vector(4, f32),
@@ -13,10 +19,11 @@ pub const Renderer = struct {
     pipeline: *gpu.RenderPipeline,
     queue: *gpu.Queue,
     vertex_buffer: *gpu.Buffer,
-    vertices: std.ArrayList(Vertex),
+    vertices: [max_vertices]Vertex = undefined,
+    vertices_len: u32 = 0,
 
-    pub fn init(allocator: std.mem.Allocator, core: *mach.Core) Renderer {
-        var vertices = std.ArrayList(Vertex).init(allocator);
+    pub fn init(_: std.mem.Allocator, core: *mach.Core) Renderer {
+
         const shader_module = core.device().createShaderModuleWGSL("shader.wgsl", @embedFile("shader.wgsl"));
 
         const blend = gpu.BlendState{};
@@ -61,16 +68,16 @@ pub const Renderer = struct {
             .pipeline = pipeline,
             .queue = queue,
             .vertex_buffer = vertex_buffer,
-            .vertices = vertices,
         };
     }
 
-    pub fn deinit(renderer: *Renderer) void {
-        renderer.vertices.deinit();
+    pub fn begin(renderer: *Renderer) !void {
+        renderer.vertices_len = 0;
     }
 
-    pub fn render(renderer: *Renderer) !void{
-        renderer.queue.writeBuffer(renderer.vertex_buffer, 0, renderer.vertices.items[0..]);
+    pub fn end(renderer: *Renderer) !void {
+
+        renderer.queue.writeBuffer(renderer.vertex_buffer, 0, renderer.vertices[0..]);
 
         const back_buffer_view = renderer.core.swapChain().getCurrentTextureView();
         const color_attachment = gpu.RenderPassColorAttachment{
@@ -85,8 +92,8 @@ pub const Renderer = struct {
         });
         const pass = command_encoder.beginRenderPass(&render_pass_info);
         pass.setPipeline(renderer.pipeline);
-        pass.setVertexBuffer(0, renderer.vertex_buffer, 0, @sizeOf(Vertex) * renderer.vertices.items.len);
-        pass.draw(@intCast(u32, renderer.vertices.items.len), 1, 0, 0);
+        pass.setVertexBuffer(0, renderer.vertex_buffer, 0, @sizeOf(Vertex) * renderer.vertices_len);
+        pass.draw(renderer.vertices_len, 1, 0, 0);
         pass.end();
         pass.release();
 
@@ -99,6 +106,8 @@ pub const Renderer = struct {
     }
 
     pub fn drawFilledRectangle(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32) !void {
+        if(renderer.vertices_len >= max_vertices) return RendererError.BufferCapacityExceeded;
+
         const window_size = renderer.core.size();
         const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
         const half_window_h = @intToFloat(f32, window_size.height) * 0.5;
@@ -108,13 +117,14 @@ pub const Renderer = struct {
         const new_height = height / half_window_h;
         const color = [4]f32{1.0, 1.0, 0.0, 1.0};
 
-        try renderer.vertices.append(.{.pos = .{ new_x + new_width, new_y, 0.1, 1.0 }, .col = color});
-        try renderer.vertices.append(.{.pos = .{ new_x, new_y, 0.1, 1.0 }, .col = color});
-        try renderer.vertices.append(.{.pos = .{ new_x, new_y - new_height, 0.1, 1.0 }, .col = color});
+        renderer.vertices[renderer.vertices_len + 0] = .{.pos = .{ new_x + new_width, new_y, 0.1, 1.0 }, .col = color};
+        renderer.vertices[renderer.vertices_len + 1] = .{.pos = .{ new_x, new_y, 0.1, 1.0 }, .col = color};
+        renderer.vertices[renderer.vertices_len + 2] = .{.pos = .{ new_x, new_y - new_height, 0.1, 1.0 }, .col = color};
 
-        try renderer.vertices.append(.{.pos = .{ new_x, new_y - new_height, 0.1, 1.0 }, .col = color});
-        try renderer.vertices.append(.{.pos = .{ new_x + new_width, new_y - new_height, 0.1, 1.0 }, .col = color});
-        try renderer.vertices.append(.{.pos = .{ new_x + new_width, new_y, 0.1, 1.0 }, .col = color});
+        renderer.vertices[renderer.vertices_len + 3] = .{.pos = .{ new_x, new_y - new_height, 0.1, 1.0 }, .col = color};
+        renderer.vertices[renderer.vertices_len + 4] = .{.pos = .{ new_x + new_width, new_y - new_height, 0.1, 1.0 }, .col = color};
+        renderer.vertices[renderer.vertices_len + 5] = .{.pos = .{ new_x + new_width, new_y, 0.1, 1.0 }, .col = color};
+        renderer.vertices_len += 6;
     }
 
 };
