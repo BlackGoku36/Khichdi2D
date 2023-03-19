@@ -22,7 +22,7 @@ pub const Renderer = struct {
     vertices_len: u32 = 0,
     color: [4]f32 = .{ 0.0, 0.0, 0.0, 0.0 },
 
-    pub fn init(_: std.mem.Allocator, core: *mach.Core) Renderer {
+    pub fn init(core: *mach.Core) Renderer {
         const shader_module = core.device().createShaderModuleWGSL("shader.wgsl", @embedFile("shader.wgsl"));
 
         const blend = gpu.BlendState{};

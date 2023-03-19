@@ -13,10 +13,9 @@ renderer: Renderer,
 
 pub fn init(app: *App) !void {
     try app.core.init(gpa.allocator(), .{});
-
     app.core.setTitle("yohohoho");
 
-    app.renderer = Renderer.init(gpa.allocator(), &app.core);
+    app.renderer = Renderer.init(&app.core);
 }
 
 pub fn deinit(app: *App) void {
@@ -32,10 +31,6 @@ pub fn update(app: *App) !bool {
     while (iter.next()) |event| {
         switch (event) {
             .close => return true,
-            .mouse_motion => |mouse_motion| {
-                mouse_x = mouse_motion.pos.x;
-                mouse_y = mouse_motion.pos.y;
-            },
             else => {},
         }
     }
