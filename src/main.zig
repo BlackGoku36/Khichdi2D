@@ -38,16 +38,16 @@ pub fn update(app: *App) !bool {
     try app.renderer.begin();
 
     app.renderer.setColor(0.235, 0.22, 0.212, 1.0);
-    try app.renderer.drawFilledRectangle(150.0, 150.0, 100.0, 100.0);
+    try app.renderer.drawFilledRectangle(100.0, 100.0, 400.0, 400.0);
 
     app.renderer.setColor(0.984, 0.286, 0.204, 1.0);
-    try app.renderer.drawRectangle(350.0, 150.0, 100.0, 100.0, 50.0);
+    try app.renderer.drawRectangle(100.0, 100.0, 400.0, 400.0, 20.0);
 
     app.renderer.setColor(0.722, 0.733, 0.149, 1.0);
-    try app.renderer.drawRectangle(150.0, 350.0, 100.0, 100.0, 30.0);
+    try app.renderer.drawFilledRectangle(150.0, 350.0, 100.0, 100.0);
 
     app.renderer.setColor(0.514, 0.647, 0.596, 1.0);
-    try app.renderer.drawFilledRectangle(350.0, 350.0, 100.0, 100.0);
+    try app.renderer.drawFilledTriangle(250.0, 150.0, 450.0, 150.0, 450.0, 350.0);
 
     try app.renderer.end();
 
