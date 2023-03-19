@@ -8,7 +8,7 @@
     1. Clear up the buffer after a frame is finished, so that if rect if drawn when a button is pressed, it should only render when button is pressed.
     2. Add some `setColor(R<Int>, G<Int>, B<Int>)` function for setting color. Whatever rendered after setting color should use that color.~~
 
-4. Add Triangles.
+~~4. Add Triangles.~~
 
 5. Add Textures.
 
