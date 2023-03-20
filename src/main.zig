@@ -1,6 +1,6 @@
 const std = @import("std");
 const mach = @import("mach");
-const gpu = @import("gpu");
+const gpu = mach.gpu;
 
 const Renderer = @import("renderer.zig").Renderer;
 
