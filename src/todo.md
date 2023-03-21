@@ -13,8 +13,8 @@
 5. Add Textures.
     ~~1. Add basics texture rendering.~~
     2. Add functions like:
-        - drawImage: parameter is x & y post and width/height should be image size.
-        - drawScaledImage: parameter is x, y, width and height.
+        ~~- drawImage: parameter is x & y post and width/height should be image size.~~
+        ~~- drawScaledImage: parameter is x, y, width and height.~~
         - drawSubImage: parameter is x, y, x1, y1, width1, height1.
             - x1, y1, width1 and height1 are sub-image section area.
             - image width and height will be same as image size.

@@ -24,7 +24,7 @@ pub const ImageRenderer = struct {
     vertices: [max_vertices]ImageVertex = undefined,
     vertices_len: u32 = 0,
     bind_group: *gpu.BindGroup,
-    // image: Image
+    texture: *gpu.Texture,
 
     pub fn init(core: *mach.Core, allocator: std.mem.Allocator) !ImageRenderer {
         const shader_module = core.device().createShaderModuleWGSL("image_shader.wgsl", @embedFile("image_shader.wgsl"));
@@ -107,6 +107,7 @@ pub const ImageRenderer = struct {
             .queue = queue,
             .vertex_buffer = vertex_buffer,
             .bind_group = bind_group,
+            .texture = texture,
         };
     }
 
@@ -148,7 +149,28 @@ pub const ImageRenderer = struct {
         back_buffer_view.release();
     }
 
-    pub fn drawImage(renderer: *ImageRenderer, x: f32, y: f32, width: f32, height: f32) !void {
+    pub fn drawImage(renderer: *ImageRenderer, x: f32, y: f32) !void {
+        if (renderer.vertices_len >= max_vertices) return RendererError.BufferCapacityExceeded;
+
+        const window_size = renderer.core.size();
+        const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
+        const half_window_h = @intToFloat(f32, window_size.height) * 0.5;
+        const new_x = x / half_window_w - 1.0;
+        const new_y = 1.0 - y / half_window_h;
+        const new_width = @intToFloat(f32, renderer.texture.getWidth()) / half_window_w;
+        const new_height = @intToFloat(f32, renderer.texture.getHeight()) / half_window_h;
+
+        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y, 0.1, 1.0 }, .uv = .{ 1.0, 0.0 } };
+        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y, 0.1, 1.0 }, .uv = .{ 0.0, 0.0 } };
+        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height, 0.1, 1.0 }, .uv = .{ 0.0, 1.0 } };
+
+        renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x, new_y - new_height, 0.1, 1.0 }, .uv = .{ 0.0, 1.0 } };
+        renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height, 0.1, 1.0 }, .uv = .{ 1.0, 1.0 } };
+        renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y, 0.1, 1.0 }, .uv = .{ 1.0, 0.0 } };
+        renderer.vertices_len += 6;
+    }
+
+    pub fn drawScaledImage(renderer: *ImageRenderer, x: f32, y: f32, width: f32, height: f32) !void {
         if (renderer.vertices_len >= max_vertices) return RendererError.BufferCapacityExceeded;
 
         const window_size = renderer.core.size();

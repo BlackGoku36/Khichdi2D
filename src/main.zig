@@ -50,13 +50,13 @@ pub fn update(app: *App) !bool {
     // app.renderer.setColor(0.514, 0.647, 0.596, 1.0);
     // try app.renderer.drawFilledTriangle(250.0, 150.0, 450.0, 150.0, 450.0, 350.0);
 
-    try app.renderer.drawImage(100.0, 100.0, 100.0, 100.0);
+    try app.renderer.drawImage(0.0, 100.0);
 
-    try app.renderer.drawImage(300.0, 100.0, 100.0, 100.0);
+    try app.renderer.drawScaledImage(500.0, 100.0, 100.0, 100.0);
 
-    try app.renderer.drawImage(100.0, 300.0, 100.0, 100.0);
+    // try app.renderer.drawImage(100.0, 300.0);
 
-    try app.renderer.drawImage(300.0, 300.0, 100.0, 100.0);
+    // try app.renderer.drawImage(300.0, 300.0);
 
     try app.renderer.end();
 
