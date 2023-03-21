@@ -1,3 +1,6 @@
 [submodule "libs/mach"]
 	path = libs/mach
 	url = https://github.com/hexops/mach.git
+[submodule "libs/zigimg"]
+	path = libs/zigimg
+	url = https://github.com/zigimg/zigimg.git
