@@ -1,6 +1,6 @@
 const std = @import("std");
 const mach = @import("mach");
-const gpu = @import("gpu");
+const gpu = mach.gpu;
 
 const RendererError = error{
     BufferCapacityExceeded,
@@ -132,8 +132,8 @@ pub const Renderer = struct {
         renderer.vertices_len += 6;
     }
 
-    pub fn drawFilledTriangle(renderer: *Renderer, x1: f32, y1: f32, x2:f32, y2:f32, x3:f32, y3: f32) !void {
-        if(renderer.vertices_len >= max_vertices) return RendererError.BufferCapacityExceeded;
+    pub fn drawFilledTriangle(renderer: *Renderer, x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32) !void {
+        if (renderer.vertices_len >= max_vertices) return RendererError.BufferCapacityExceeded;
 
         const window_size = renderer.core.size();
         const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
@@ -152,7 +152,6 @@ pub const Renderer = struct {
         renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x3, new_y3, 0.0, 1.0 }, .col = renderer.color };
 
         renderer.vertices_len += 3;
-
     }
 
     pub fn setColor(renderer: *Renderer, r: f32, g: f32, b: f32, a: f32) void {
