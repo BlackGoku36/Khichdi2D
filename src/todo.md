@@ -15,10 +15,10 @@
     2. Add functions like:
         ~~- drawImage: parameter is x & y post and width/height should be image size.~~
         ~~- drawScaledImage: parameter is x, y, width and height.~~
-        - drawSubImage: parameter is x, y, x1, y1, width1, height1.
+        ~~- drawSubImage: parameter is x, y, x1, y1, width1, height1.
             - x1, y1, width1 and height1 are sub-image section area.
-            - image width and height will be same as image size.
-        - drawScaledSubImage: all parameters.
+            - image width and height will be same as image size.~~
+        ~~- drawScaledSubImage: all parameters.~~
     3. Clean it up (naming, sizes, etc).
     4. Make up a main renderer (batch system) and expose all the draw functions from there (colored, images, etc).
 

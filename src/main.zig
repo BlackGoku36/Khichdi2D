@@ -27,11 +27,18 @@ pub fn deinit(app: *App) void {
 var mouse_x: f64 = 0.0;
 var mouse_y: f64 = 0.0;
 
+var x: f32 = 100.0;
+var y: f32 = 100.0;
+
 pub fn update(app: *App) !bool {
     var iter = app.core.pollEvents();
     while (iter.next()) |event| {
         switch (event) {
             .close => return true,
+            .mouse_motion => |mouse| {
+                mouse_x = mouse.pos.x;
+                mouse_y = mouse.pos.y;
+            },
             else => {},
         }
     }
@@ -50,13 +57,17 @@ pub fn update(app: *App) !bool {
     // app.renderer.setColor(0.514, 0.647, 0.596, 1.0);
     // try app.renderer.drawFilledTriangle(250.0, 150.0, 450.0, 150.0, 450.0, 350.0);
 
-    try app.renderer.drawImage(0.0, 100.0);
+    // try app.renderer.drawImage(0.0, 100.0);
 
-    try app.renderer.drawScaledImage(500.0, 100.0, 100.0, 100.0);
+    // try app.renderer.drawScaledImage(500.0, 100.0, 100.0, 100.0);
+    if (mouse_x > 100.0 and mouse_x < 100.0 + 400.0 and mouse_y > 100.0 and mouse_y < 100.0 + 400.0) {
+        x = @floatCast(f32, mouse_x) - 100.0;
+        y = @floatCast(f32, mouse_y) - 100.0;
+    }
 
-    // try app.renderer.drawImage(100.0, 300.0);
+    try app.renderer.drawSubImage(100.0, 100.0, x, y, 200.0, 200.0);
 
-    // try app.renderer.drawImage(300.0, 300.0);
+    // try app.renderer.drawScaledSubImage(100.0, 100.0, 50.0, 50.0, 200.0, 200.0, 200.0, 200.0);
 
     try app.renderer.end();
 
