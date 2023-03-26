@@ -9,7 +9,8 @@ const RendererError = error{
     BufferCapacityExceeded,
 };
 
-const max_vertices: u32 = 6 * 1000 + 3 * 1000; // 1000 rect + 1000 tris
+const max_vertices_colored: u32 = 6 * 1000 + 3 * 1000; // 1000 rect + 1000 tris
+const max_vertices_images: u32 = 6 * 1000; // 1000 images
 
 pub const ImageVertex = extern struct {
     pos: @Vector(2, f32),
@@ -21,7 +22,7 @@ pub const ImageRenderer = struct {
     pipeline: *gpu.RenderPipeline,
     queue: *gpu.Queue,
     vertex_buffer: *gpu.Buffer,
-    vertices: [max_vertices]ImageVertex = undefined,
+    vertices: [max_vertices_images]ImageVertex = undefined,
     vertices_len: u32 = 0,
     bind_group: *gpu.BindGroup,
     texture: *gpu.Texture,
@@ -47,7 +48,7 @@ pub const ImageRenderer = struct {
 
         const vertex_buffer = core.device().createBuffer(&.{
             .usage = .{ .vertex = true, .copy_dst = true },
-            .size = @sizeOf(ImageVertex) * max_vertices,
+            .size = @sizeOf(ImageVertex) * max_vertices_images,
         });
 
         const vertex = gpu.VertexState.init(.{
@@ -150,7 +151,7 @@ pub const ImageRenderer = struct {
     }
 
     pub fn drawImage(renderer: *ImageRenderer, x: f32, y: f32) !void {
-        if (renderer.vertices_len >= max_vertices) return RendererError.BufferCapacityExceeded;
+        if (renderer.vertices_len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
         const window_size = renderer.core.size();
         const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
@@ -160,18 +161,18 @@ pub const ImageRenderer = struct {
         const new_width = @intToFloat(f32, renderer.texture.getWidth()) / half_window_w;
         const new_height = @intToFloat(f32, renderer.texture.getHeight()) / half_window_h;
 
-        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y}, .uv = .{ 1.0, 0.0 } };
-        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y}, .uv = .{ 0.0, 0.0 } };
-        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height}, .uv = .{ 0.0, 1.0 } };
+        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ 1.0, 0.0 } };
+        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .uv = .{ 0.0, 0.0 } };
+        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ 0.0, 1.0 } };
 
-        renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x, new_y - new_height}, .uv = .{ 0.0, 1.0 } };
-        renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height}, .uv = .{ 1.0, 1.0 } };
-        renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y}, .uv = .{ 1.0, 0.0 } };
+        renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ 0.0, 1.0 } };
+        renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ 1.0, 1.0 } };
+        renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ 1.0, 0.0 } };
         renderer.vertices_len += 6;
     }
 
     pub fn drawSubImage(renderer: *ImageRenderer, x: f32, y: f32, x1: f32, y1: f32, width1: f32, height1: f32) !void {
-        if (renderer.vertices_len >= max_vertices) return RendererError.BufferCapacityExceeded;
+        if (renderer.vertices_len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
         const window_size = renderer.core.size();
         const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
@@ -186,18 +187,18 @@ pub const ImageRenderer = struct {
         const sub_width = width1 / @intToFloat(f32, renderer.texture.getWidth());
         const sub_height = height1 / @intToFloat(f32, renderer.texture.getHeight());
 
-        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y}, .uv = .{ sub_x + sub_width, sub_y } };
-        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y}, .uv = .{ sub_x, sub_y } };
-        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height}, .uv = .{ sub_x, sub_y + sub_height } };
+        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ sub_x + sub_width, sub_y } };
+        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .uv = .{ sub_x, sub_y } };
+        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ sub_x, sub_y + sub_height } };
 
-        renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x, new_y - new_height}, .uv = .{ sub_x, sub_y + sub_height } };
-        renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height}, .uv = .{ sub_x + sub_width, sub_y + sub_height } };
-        renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y}, .uv = .{ sub_x + sub_width, sub_y } };
+        renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ sub_x, sub_y + sub_height } };
+        renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ sub_x + sub_width, sub_y + sub_height } };
+        renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ sub_x + sub_width, sub_y } };
         renderer.vertices_len += 6;
     }
 
     pub fn drawScaledImage(renderer: *ImageRenderer, x: f32, y: f32, width: f32, height: f32) !void {
-        if (renderer.vertices_len >= max_vertices) return RendererError.BufferCapacityExceeded;
+        if (renderer.vertices_len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
         const window_size = renderer.core.size();
         const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
@@ -207,18 +208,18 @@ pub const ImageRenderer = struct {
         const new_width = width / half_window_w;
         const new_height = height / half_window_h;
 
-        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y}, .uv = .{ 1.0, 0.0 } };
-        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y}, .uv = .{ 0.0, 0.0 } };
-        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height}, .uv = .{ 0.0, 1.0 } };
+        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ 1.0, 0.0 } };
+        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .uv = .{ 0.0, 0.0 } };
+        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ 0.0, 1.0 } };
 
-        renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x, new_y - new_height}, .uv = .{ 0.0, 1.0 } };
-        renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height}, .uv = .{ 1.0, 1.0 } };
-        renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y}, .uv = .{ 1.0, 0.0 } };
+        renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ 0.0, 1.0 } };
+        renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ 1.0, 1.0 } };
+        renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ 1.0, 0.0 } };
         renderer.vertices_len += 6;
     }
 
     pub fn drawScaledSubImage(renderer: *ImageRenderer, x: f32, y: f32, width: f32, height: f32, x1: f32, y1: f32, width1: f32, height1: f32) !void {
-        if (renderer.vertices_len >= max_vertices) return RendererError.BufferCapacityExceeded;
+        if (renderer.vertices_len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
         const window_size = renderer.core.size();
         const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
@@ -233,13 +234,13 @@ pub const ImageRenderer = struct {
         const sub_width = width1 / @intToFloat(f32, renderer.texture.getWidth());
         const sub_height = height1 / @intToFloat(f32, renderer.texture.getHeight());
 
-        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y}, .uv = .{ sub_x + sub_width, sub_y } };
-        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y}, .uv = .{ sub_x, sub_y } };
-        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height}, .uv = .{ sub_x, sub_y + sub_height } };
+        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ sub_x + sub_width, sub_y } };
+        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .uv = .{ sub_x, sub_y } };
+        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ sub_x, sub_y + sub_height } };
 
-        renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x, new_y - new_height}, .uv = .{ sub_x, sub_y + sub_height } };
-        renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height}, .uv = .{ sub_x + sub_width, sub_y + sub_height } };
-        renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y}, .uv = .{ sub_x + sub_width, sub_y } };
+        renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ sub_x, sub_y + sub_height } };
+        renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ sub_x + sub_width, sub_y + sub_height } };
+        renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ sub_x + sub_width, sub_y } };
         renderer.vertices_len += 6;
     }
 
@@ -263,7 +264,7 @@ pub const ColoredRenderer = struct {
     pipeline: *gpu.RenderPipeline,
     queue: *gpu.Queue,
     vertex_buffer: *gpu.Buffer,
-    vertices: [max_vertices]ColorVertex = undefined,
+    vertices: [max_vertices_colored]ColorVertex = undefined,
     vertices_len: u32 = 0,
     color: [4]f32 = .{ 0.0, 0.0, 0.0, 0.0 },
 
@@ -288,7 +289,7 @@ pub const ColoredRenderer = struct {
 
         const vertex_buffer = core.device().createBuffer(&.{
             .usage = .{ .vertex = true, .copy_dst = true },
-            .size = @sizeOf(ColorVertex) * max_vertices,
+            .size = @sizeOf(ColorVertex) * max_vertices_colored,
         });
 
         const vertex = gpu.VertexState.init(.{
@@ -357,7 +358,7 @@ pub const ColoredRenderer = struct {
     }
 
     pub fn drawFilledRectangle(renderer: *ColoredRenderer, x: f32, y: f32, width: f32, height: f32) !void {
-        if (renderer.vertices_len >= max_vertices) return RendererError.BufferCapacityExceeded;
+        if (renderer.vertices_len >= max_vertices_colored) return RendererError.BufferCapacityExceeded;
 
         const window_size = renderer.core.size();
         const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
@@ -367,18 +368,18 @@ pub const ColoredRenderer = struct {
         const new_width = width / half_window_w;
         const new_height = height / half_window_h;
 
-        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y}, .col = renderer.color };
-        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y}, .col = renderer.color };
-        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height}, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height }, .col = renderer.color };
 
-        renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x, new_y - new_height}, .col = renderer.color };
-        renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height}, .col = renderer.color };
-        renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y}, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x, new_y - new_height }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .col = renderer.color };
         renderer.vertices_len += 6;
     }
 
     pub fn drawFilledTriangle(renderer: *ColoredRenderer, x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32) !void {
-        if (renderer.vertices_len >= max_vertices) return RendererError.BufferCapacityExceeded;
+        if (renderer.vertices_len >= max_vertices_colored) return RendererError.BufferCapacityExceeded;
 
         const window_size = renderer.core.size();
         const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
@@ -392,9 +393,9 @@ pub const ColoredRenderer = struct {
         const new_x3 = x3 / half_window_w - 1.0;
         const new_y3 = 1.0 - y3 / half_window_h;
 
-        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x1, new_y1}, .col = renderer.color };
-        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x2, new_y2}, .col = renderer.color };
-        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x3, new_y3}, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x1, new_y1 }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x2, new_y2 }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x3, new_y3 }, .col = renderer.color };
 
         renderer.vertices_len += 3;
     }
