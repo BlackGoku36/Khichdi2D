@@ -9,8 +9,138 @@ const RendererError = error{
     BufferCapacityExceeded,
 };
 
+const State = enum{
+    none, colored, image
+};
+
 const max_vertices_colored: u32 = 6 * 1000 + 3 * 1000; // 1000 rect + 1000 tris
 const max_vertices_images: u32 = 6 * 1000; // 1000 images
+
+pub const Renderer = struct {
+    core: *mach.Core,
+    queue: *gpu.Queue,
+    image_renderer: ImageRenderer,
+    colored_renderer: ColoredRenderer,
+    command_encoder: *gpu.CommandEncoder = undefined,
+    pass: *gpu.RenderPassEncoder = undefined,
+    back_buffer_view: *gpu.TextureView = undefined,
+    state: State = .none,
+
+    pub fn init(core: *mach.Core, allocator: std.mem.Allocator) !Renderer {
+        var queue = core.device().getQueue();
+        var image_renderer = try ImageRenderer.init(core, queue, allocator);
+        var colored_renderer = ColoredRenderer.init(core, queue);
+
+        return Renderer{
+            .core = core,
+            .queue = queue,
+            .image_renderer = image_renderer,
+            .colored_renderer = colored_renderer
+        };
+    }
+
+    pub fn begin(renderer: *Renderer) void {
+        renderer.image_renderer.vertices_len = 0;
+        renderer.colored_renderer.vertices_len = 0;
+
+        renderer.back_buffer_view = renderer.core.swapChain().getCurrentTextureView();
+        const color_attachment = gpu.RenderPassColorAttachment{
+            .view = renderer.back_buffer_view,
+            .clear_value = std.mem.zeroes(gpu.Color),
+            .load_op = .clear,
+            .store_op = .store,
+        };
+        renderer.command_encoder = renderer.core.device().createCommandEncoder(null);
+        const render_pass_info = gpu.RenderPassDescriptor.init(.{
+            .color_attachments = &.{color_attachment},
+        });
+        renderer.pass = renderer.command_encoder.beginRenderPass(&render_pass_info);
+    }
+
+    fn endImageRenderer(renderer: *Renderer) void {
+        if(renderer.image_renderer.vertices_len > 0) try renderer.image_renderer.draw(renderer.pass);
+        renderer.state = .colored;
+    }
+
+    fn endColoredRenderer(renderer: *Renderer) void {
+        if(renderer.colored_renderer.vertices_len > 0) try renderer.colored_renderer.draw(renderer.pass);
+        renderer.state = .image;
+    }
+
+    pub fn end(renderer: *Renderer) void {
+        renderer.endImageRenderer();
+        renderer.endColoredRenderer();
+
+        renderer.pass.end();
+        renderer.pass.release();
+
+        var command = renderer.command_encoder.finish(null);
+        renderer.command_encoder.release();
+        renderer.queue.submit(&[_]*gpu.CommandBuffer{command});
+        command.release();
+        renderer.core.swapChain().present();
+        renderer.back_buffer_view.release();
+
+        renderer.image_renderer.old_index = 0;
+        renderer.image_renderer.index = 0;
+
+        renderer.colored_renderer.old_index = 0;
+        renderer.colored_renderer.index = 0;
+
+        renderer.state = .none;
+    }
+
+    pub fn deinit(renderer: *Renderer) void {
+        renderer.image_renderer.deinit();
+    }
+
+    pub fn drawImage(renderer: *Renderer, x: f32, y: f32) !void {
+        if(renderer.state == .none) renderer.state = .image;
+        if(renderer.state == .colored) renderer.endColoredRenderer();
+        try renderer.image_renderer.drawImage(x, y);
+    }
+
+    pub fn drawSubImage(renderer: *Renderer, x: f32, y: f32, x1: f32, y1: f32, width1: f32, height1: f32) !void {
+        if(renderer.state == .none) renderer.state = .image;
+        if(renderer.state == .colored) renderer.endColoredRenderer();
+        try renderer.image_renderer.drawSubImage(x, y, x1, y1, width1, height1); 
+    }
+
+    pub fn drawScaledImage(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32) !void {
+        if(renderer.state == .none) renderer.state = .image;
+        if(renderer.state == .colored) renderer.endColoredRenderer();
+        try renderer.image_renderer.drawScaledImage(x, y, width, height);
+    }
+
+    pub fn drawScaledSubImage(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32, x1: f32, y1: f32, width1: f32, height1: f32) !void {
+        if(renderer.state == .none) renderer.state = .image;
+        if(renderer.state == .colored) renderer.endColoredRenderer();
+        try renderer.image_renderer.drawScaledSubImage(x, y, width, height, x1, y1, width1, height1);
+    }
+
+    pub fn drawRectangle(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32, thiccness: f32) !void {
+        if(renderer.state == .none) renderer.state = .colored;
+        if(renderer.state == .image) renderer.endImageRenderer();
+        try renderer.colored_renderer.drawRectangle(x, y, width, height, thiccness);
+    }
+
+    pub fn drawFilledRectangle(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32) !void {
+        if(renderer.state == .none) renderer.state = .colored;
+        if(renderer.state == .image) renderer.endImageRenderer();
+        try renderer.colored_renderer.drawFilledRectangle(x, y, width, height);
+    }
+
+    pub fn drawFilledTriangle(renderer: *Renderer, x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32) !void {
+        if(renderer.state == .none) renderer.state = .colored;
+        if(renderer.state == .image) renderer.endImageRenderer();
+        try renderer.colored_renderer.drawFilledTriangle(x1, y1, x2, y2, x3, y3);
+    }
+
+    pub fn setColor(renderer: *Renderer, r: f32, g: f32, b: f32, a: f32) void {
+        renderer.colored_renderer.setColor(r, g, b, a);
+    }
+
+};
 
 pub const ImageVertex = extern struct {
     pos: @Vector(2, f32),
@@ -26,8 +156,10 @@ pub const ImageRenderer = struct {
     vertices_len: u32 = 0,
     bind_group: *gpu.BindGroup,
     texture: *gpu.Texture,
+    old_index: u32 = 0,
+    index: u32 = 0,
 
-    pub fn init(core: *mach.Core, allocator: std.mem.Allocator) !ImageRenderer {
+    pub fn init(core: *mach.Core, queue: *gpu.Queue, allocator: std.mem.Allocator) !ImageRenderer {
         const shader_module = core.device().createShaderModuleWGSL("image_shader.wgsl", @embedFile("image_shader.wgsl"));
 
         const blend = gpu.BlendState{};
@@ -63,7 +195,6 @@ pub const ImageRenderer = struct {
         };
 
         var pipeline = core.device().createRenderPipeline(&pipeline_desc);
-        var queue = core.device().getQueue();
 
         var img = try zigimg.Image.fromMemory(allocator, raw_img);
         defer img.deinit();
@@ -116,38 +247,15 @@ pub const ImageRenderer = struct {
         renderer.bind_group.release();
     }
 
-    pub fn begin(renderer: *ImageRenderer) !void {
-        renderer.vertices_len = 0;
-    }
-
-    pub fn end(renderer: *ImageRenderer) !void {
+    pub fn draw(renderer: *ImageRenderer, pass: *gpu.RenderPassEncoder) !void {
         renderer.queue.writeBuffer(renderer.vertex_buffer, 0, renderer.vertices[0..]);
 
-        const back_buffer_view = renderer.core.swapChain().getCurrentTextureView();
-        const color_attachment = gpu.RenderPassColorAttachment{
-            .view = back_buffer_view,
-            .clear_value = std.mem.zeroes(gpu.Color),
-            .load_op = .clear,
-            .store_op = .store,
-        };
-        const command_encoder = renderer.core.device().createCommandEncoder(null);
-        const render_pass_info = gpu.RenderPassDescriptor.init(.{
-            .color_attachments = &.{color_attachment},
-        });
-        const pass = command_encoder.beginRenderPass(&render_pass_info);
         pass.setPipeline(renderer.pipeline);
         pass.setVertexBuffer(0, renderer.vertex_buffer, 0, @sizeOf(ImageVertex) * renderer.vertices_len);
         pass.setBindGroup(0, renderer.bind_group, &.{});
-        pass.draw(renderer.vertices_len, 1, 0, 0);
-        pass.end();
-        pass.release();
+        pass.draw(renderer.index - renderer.old_index, 1, renderer.old_index, 0);
 
-        var command = command_encoder.finish(null);
-        command_encoder.release();
-        renderer.queue.submit(&[_]*gpu.CommandBuffer{command});
-        command.release();
-        renderer.core.swapChain().present();
-        back_buffer_view.release();
+        renderer.old_index = renderer.index;
     }
 
     pub fn drawImage(renderer: *ImageRenderer, x: f32, y: f32) !void {
@@ -169,6 +277,7 @@ pub const ImageRenderer = struct {
         renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ 1.0, 1.0 } };
         renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ 1.0, 0.0 } };
         renderer.vertices_len += 6;
+        renderer.index += 6;
     }
 
     pub fn drawSubImage(renderer: *ImageRenderer, x: f32, y: f32, x1: f32, y1: f32, width1: f32, height1: f32) !void {
@@ -195,6 +304,7 @@ pub const ImageRenderer = struct {
         renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ sub_x + sub_width, sub_y + sub_height } };
         renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ sub_x + sub_width, sub_y } };
         renderer.vertices_len += 6;
+        renderer.index += 6;
     }
 
     pub fn drawScaledImage(renderer: *ImageRenderer, x: f32, y: f32, width: f32, height: f32) !void {
@@ -216,6 +326,7 @@ pub const ImageRenderer = struct {
         renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ 1.0, 1.0 } };
         renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ 1.0, 0.0 } };
         renderer.vertices_len += 6;
+        renderer.index += 6;
     }
 
     pub fn drawScaledSubImage(renderer: *ImageRenderer, x: f32, y: f32, width: f32, height: f32, x1: f32, y1: f32, width1: f32, height1: f32) !void {
@@ -242,6 +353,7 @@ pub const ImageRenderer = struct {
         renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ sub_x + sub_width, sub_y + sub_height } };
         renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ sub_x + sub_width, sub_y } };
         renderer.vertices_len += 6;
+        renderer.index += 6;
     }
 
     fn rgb24ToRgba32(allocator: std.mem.Allocator, in: []zigimg.color.Rgb24) !zigimg.color.PixelStorage {
@@ -267,8 +379,10 @@ pub const ColoredRenderer = struct {
     vertices: [max_vertices_colored]ColorVertex = undefined,
     vertices_len: u32 = 0,
     color: [4]f32 = .{ 0.0, 0.0, 0.0, 0.0 },
+    old_index: u32 = 0,
+    index: u32 = 0,
 
-    pub fn init(core: *mach.Core) ColoredRenderer {
+    pub fn init(core: *mach.Core, queue: *gpu.Queue) ColoredRenderer {
         const shader_module = core.device().createShaderModuleWGSL("shader.wgsl", @embedFile("shader.wgsl"));
 
         const blend = gpu.BlendState{};
@@ -304,7 +418,6 @@ pub const ColoredRenderer = struct {
         };
 
         var pipeline = core.device().createRenderPipeline(&pipeline_desc);
-        var queue = core.device().getQueue();
 
         shader_module.release();
 
@@ -316,37 +429,14 @@ pub const ColoredRenderer = struct {
         };
     }
 
-    pub fn begin(renderer: *ColoredRenderer) !void {
-        renderer.vertices_len = 0;
-    }
-
-    pub fn end(renderer: *ColoredRenderer) !void {
+    pub fn draw(renderer: *ColoredRenderer, pass: *gpu.RenderPassEncoder) !void {
         renderer.queue.writeBuffer(renderer.vertex_buffer, 0, renderer.vertices[0..]);
 
-        const back_buffer_view = renderer.core.swapChain().getCurrentTextureView();
-        const color_attachment = gpu.RenderPassColorAttachment{
-            .view = back_buffer_view,
-            .clear_value = std.mem.zeroes(gpu.Color),
-            .load_op = .clear,
-            .store_op = .store,
-        };
-        const command_encoder = renderer.core.device().createCommandEncoder(null);
-        const render_pass_info = gpu.RenderPassDescriptor.init(.{
-            .color_attachments = &.{color_attachment},
-        });
-        const pass = command_encoder.beginRenderPass(&render_pass_info);
         pass.setPipeline(renderer.pipeline);
         pass.setVertexBuffer(0, renderer.vertex_buffer, 0, @sizeOf(ColorVertex) * renderer.vertices_len);
-        pass.draw(renderer.vertices_len, 1, 0, 0);
-        pass.end();
-        pass.release();
+        pass.draw(renderer.index - renderer.old_index, 1, renderer.old_index, 0);
 
-        var command = command_encoder.finish(null);
-        command_encoder.release();
-        renderer.queue.submit(&[_]*gpu.CommandBuffer{command});
-        command.release();
-        renderer.core.swapChain().present();
-        back_buffer_view.release();
+        renderer.old_index = renderer.index;
     }
 
     pub fn drawRectangle(renderer: *ColoredRenderer, x: f32, y: f32, width: f32, height: f32, thiccness: f32) !void {
@@ -376,6 +466,7 @@ pub const ColoredRenderer = struct {
         renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .col = renderer.color };
         renderer.vertices_len += 6;
+        renderer.index += 6;
     }
 
     pub fn drawFilledTriangle(renderer: *ColoredRenderer, x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32) !void {
@@ -398,6 +489,7 @@ pub const ColoredRenderer = struct {
         renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x3, new_y3 }, .col = renderer.color };
 
         renderer.vertices_len += 3;
+        renderer.index += 3;
     }
 
     pub fn setColor(renderer: *ColoredRenderer, r: f32, g: f32, b: f32, a: f32) void {
