@@ -29,4 +29,9 @@
 8. Add transformation (rotate, scale and translate)
 9. Add Texts.
 
+- Expose re-draw bit/flag/func and make it re-draw only when the re-draw bit/flag is set.
+- Move vertex position calculation to gpu.
+- Write up stress-test for renderer.
+- Add fps/time counter.
+
 Ofc, we build up batch system while we complete above.
