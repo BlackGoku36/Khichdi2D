@@ -22,7 +22,8 @@
     3. Clean it up (naming, sizes, etc).
     4. Make up a main renderer (batch system) and expose all the draw functions from there (colored, images, etc).~~
 
-6. Make setColor effect images by multiplying the rgb values.
+~~6. Make setColor effect images by multiplying the rgb values.~~
+
 7. Figure out how should texture, texture batching should work and how will user specific which texture to draw with draw__Image() functions (api).
 
 8. Add transformation (rotate, scale and translate)

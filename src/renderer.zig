@@ -138,6 +138,7 @@ pub const Renderer = struct {
 
     pub fn setColor(renderer: *Renderer, r: f32, g: f32, b: f32, a: f32) void {
         renderer.colored_renderer.setColor(r, g, b, a);
+        renderer.image_renderer.setColor(r, g, b, a);
     }
 
 };
@@ -145,6 +146,7 @@ pub const Renderer = struct {
 pub const ImageVertex = extern struct {
     pos: @Vector(2, f32),
     uv: @Vector(2, f32),
+    col: @Vector(4, f32),
 };
 
 pub const ImageRenderer = struct {
@@ -158,11 +160,18 @@ pub const ImageRenderer = struct {
     texture: *gpu.Texture,
     old_index: u32 = 0,
     index: u32 = 0,
+    color: [4]f32 = [_]f32{0.0, 0.0, 0.0, 0.0},
 
     pub fn init(core: *mach.Core, queue: *gpu.Queue, allocator: std.mem.Allocator) !ImageRenderer {
         const shader_module = core.device().createShaderModuleWGSL("image_shader.wgsl", @embedFile("image_shader.wgsl"));
 
-        const blend = gpu.BlendState{};
+        const blend = gpu.BlendState{
+            .color = .{
+                .operation = .add,
+                .src_factor = .src_alpha,
+                .dst_factor = .one_minus_src_alpha,
+            },
+        };
         const color_target = gpu.ColorTargetState{ .format = core.descriptor().format, .blend = &blend, .write_mask = gpu.ColorWriteMaskFlags.all };
 
         const fragment = gpu.FragmentState.init(.{ .module = shader_module, .entry_point = "frag_main", .targets = &.{color_target} });
@@ -170,6 +179,7 @@ pub const ImageRenderer = struct {
         const vertex_attributes = [_]gpu.VertexAttribute{
             .{ .format = .float32x2, .offset = @offsetOf(ImageVertex, "pos"), .shader_location = 0 },
             .{ .format = .float32x2, .offset = @offsetOf(ImageVertex, "uv"), .shader_location = 1 },
+            .{ .format = .float32x4, .offset = @offsetOf(ImageVertex, "col"), .shader_location = 2 },
         };
 
         const vertex_buffer_layout = gpu.VertexBufferLayout.init(.{
@@ -269,13 +279,13 @@ pub const ImageRenderer = struct {
         const new_width = @intToFloat(f32, renderer.texture.getWidth()) / half_window_w;
         const new_height = @intToFloat(f32, renderer.texture.getHeight()) / half_window_h;
 
-        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ 1.0, 0.0 } };
-        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .uv = .{ 0.0, 0.0 } };
-        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ 0.0, 1.0 } };
+        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ 1.0, 0.0 }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .uv = .{ 0.0, 0.0 }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ 0.0, 1.0 }, .col = renderer.color };
 
-        renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ 0.0, 1.0 } };
-        renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ 1.0, 1.0 } };
-        renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ 1.0, 0.0 } };
+        renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ 0.0, 1.0 }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ 1.0, 1.0 }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ 1.0, 0.0 }, .col = renderer.color };
         renderer.vertices_len += 6;
         renderer.index += 6;
     }
@@ -296,13 +306,13 @@ pub const ImageRenderer = struct {
         const sub_width = width1 / @intToFloat(f32, renderer.texture.getWidth());
         const sub_height = height1 / @intToFloat(f32, renderer.texture.getHeight());
 
-        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ sub_x + sub_width, sub_y } };
-        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .uv = .{ sub_x, sub_y } };
-        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ sub_x, sub_y + sub_height } };
+        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ sub_x + sub_width, sub_y }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .uv = .{ sub_x, sub_y }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ sub_x, sub_y + sub_height }, .col = renderer.color };
 
-        renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ sub_x, sub_y + sub_height } };
-        renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ sub_x + sub_width, sub_y + sub_height } };
-        renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ sub_x + sub_width, sub_y } };
+        renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ sub_x, sub_y + sub_height }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ sub_x + sub_width, sub_y + sub_height }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ sub_x + sub_width, sub_y }, .col = renderer.color };
         renderer.vertices_len += 6;
         renderer.index += 6;
     }
@@ -318,13 +328,13 @@ pub const ImageRenderer = struct {
         const new_width = width / half_window_w;
         const new_height = height / half_window_h;
 
-        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ 1.0, 0.0 } };
-        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .uv = .{ 0.0, 0.0 } };
-        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ 0.0, 1.0 } };
+        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ 1.0, 0.0 }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .uv = .{ 0.0, 0.0 }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ 0.0, 1.0 }, .col = renderer.color };
 
-        renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ 0.0, 1.0 } };
-        renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ 1.0, 1.0 } };
-        renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ 1.0, 0.0 } };
+        renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ 0.0, 1.0 }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ 1.0, 1.0 }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ 1.0, 0.0 }, .col = renderer.color };
         renderer.vertices_len += 6;
         renderer.index += 6;
     }
@@ -345,13 +355,13 @@ pub const ImageRenderer = struct {
         const sub_width = width1 / @intToFloat(f32, renderer.texture.getWidth());
         const sub_height = height1 / @intToFloat(f32, renderer.texture.getHeight());
 
-        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ sub_x + sub_width, sub_y } };
-        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .uv = .{ sub_x, sub_y } };
-        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ sub_x, sub_y + sub_height } };
+        renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ sub_x + sub_width, sub_y }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .uv = .{ sub_x, sub_y }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ sub_x, sub_y + sub_height }, .col = renderer.color };
 
-        renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ sub_x, sub_y + sub_height } };
-        renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ sub_x + sub_width, sub_y + sub_height } };
-        renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ sub_x + sub_width, sub_y } };
+        renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ sub_x, sub_y + sub_height }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ sub_x + sub_width, sub_y + sub_height }, .col = renderer.color };
+        renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ sub_x + sub_width, sub_y }, .col = renderer.color };
         renderer.vertices_len += 6;
         renderer.index += 6;
     }
@@ -363,6 +373,13 @@ pub const ImageRenderer = struct {
             out.rgba32[i] = zigimg.color.Rgba32{ .r = in[i].r, .g = in[i].g, .b = in[i].b, .a = 255 };
         }
         return out;
+    }
+
+    pub fn setColor(renderer: *ImageRenderer, r:f32, g:f32, b: f32, a: f32) void {
+        renderer.color[0] = r;
+        renderer.color[1] = g;
+        renderer.color[2] = b;
+        renderer.color[3] = a;
     }
 };
 
