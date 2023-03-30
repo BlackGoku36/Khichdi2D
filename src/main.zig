@@ -10,14 +10,15 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
 core: mach.Core,
 renderer: Renderer,
-fps_timer: mach.Timer,
-frames_counter: u8 = 0,
+ms_timer: mach.Timer,
+ms: f32 = 0.0,
+ms_counter: u8 = 0,
 
 pub fn init(app: *App) !void {
     try app.core.init(gpa.allocator(), .{});
     app.core.setTitle("Khichdi2D");
 
-    app.fps_timer = try mach.Timer.start();
+    app.ms_timer = try mach.Timer.start();
     app.renderer = try Renderer.init(&app.core, gpa.allocator());
 }
 
@@ -38,7 +39,7 @@ pub fn update(app: *App) !bool {
         }
     }
 
-    const delta_time = app.fps_timer.lap();
+    const delta_time = @intToFloat(f32, app.ms_timer.lapPrecise()) / @intToFloat(f32, std.time.ns_per_ms);
 
     app.renderer.begin();
 
@@ -59,14 +60,15 @@ pub fn update(app: *App) !bool {
 
     app.renderer.end();
 
-    if(app.frames_counter >= 100){
-        var buf: [32]u8 = undefined;
-        const title = try std.fmt.bufPrintZ(&buf, "Khichdi2D [ FPS: {d} ]", .{@floor(1 / delta_time)});
+    if(app.ms_counter >= 100){
+        var buf: [50]u8 = undefined;
+        const title = try std.fmt.bufPrintZ(&buf, "Khichdi2D [ ms: {d} ]", .{delta_time/@intToFloat(f32, app.ms_counter)});
         app.core.setTitle(title);
-        app.frames_counter = 0;
+        app.ms_counter = 0;
+        app.ms = 0.0;
     }
-
-    app.frames_counter += 1;
+    app.ms += delta_time;
+    app.ms_counter += 1;
 
     return false;
 }
