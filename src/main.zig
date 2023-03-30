@@ -10,11 +10,14 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
 core: mach.Core,
 renderer: Renderer,
+fps_timer: mach.Timer,
+frames_counter: u8 = 0,
 
 pub fn init(app: *App) !void {
     try app.core.init(gpa.allocator(), .{});
-    app.core.setTitle("yohohoho");
+    app.core.setTitle("Khichdi2D");
 
+    app.fps_timer = try mach.Timer.start();
     app.renderer = try Renderer.init(&app.core, gpa.allocator());
 }
 
@@ -35,6 +38,8 @@ pub fn update(app: *App) !bool {
         }
     }
 
+    const delta_time = app.fps_timer.lap();
+
     app.renderer.begin();
 
     app.renderer.setColor(0.235, 0.22, 0.212, 1.0);
@@ -53,6 +58,15 @@ pub fn update(app: *App) !bool {
     try app.renderer.drawFilledTriangle(250.0, 150.0, 450.0, 150.0, 450.0, 350.0);
 
     app.renderer.end();
+
+    if(app.frames_counter >= 100){
+        var buf: [32]u8 = undefined;
+        const title = try std.fmt.bufPrintZ(&buf, "Khichdi2D [ FPS: {d} ]", .{@floor(1 / delta_time)});
+        app.core.setTitle(title);
+        app.frames_counter = 0;
+    }
+
+    app.frames_counter += 1;
 
     return false;
 }
