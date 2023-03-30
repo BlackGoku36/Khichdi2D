@@ -55,7 +55,7 @@ pub fn update(app: *App) !bool {
     app.renderer.setColor(1.0, 1.0, 1.0, 0.5);
     try app.renderer.drawScaledImage(300.0, 200.0, 100.0, 100.0);
 
-    app.renderer.setColor(0.514, 0.647, 0.596, 1.0);
+    app.renderer.setColor(0.514, 0.647, 0.596, 0.7);
     try app.renderer.drawFilledTriangle(250.0, 150.0, 450.0, 150.0, 450.0, 350.0);
 
     app.renderer.end();
