@@ -61,7 +61,7 @@ pub const Renderer = struct {
         renderer.image_renderer.vertices_len = 0;
         renderer.colored_renderer.vertices_len = 0;
 
-        const window_size = core.size();
+        const window_size = renderer.core.size();
         const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
         const half_window_h = @intToFloat(f32, window_size.height) * 0.5;
         renderer.image_renderer.half_window_w = half_window_w;
@@ -318,8 +318,8 @@ pub const ImageRenderer = struct {
 
         if (renderer.vertices_len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
-        const new_x = x / half_window_w - 1.0;
-        const new_y = 1.0 - y / half_window_h;
+        const new_x = x / renderer.half_window_w - 1.0;
+        const new_y = 1.0 - y / renderer.half_window_h;
         const new_width = @intToFloat(f32, renderer.texture.getWidth()) / renderer.half_window_w;
         const new_height = @intToFloat(f32, renderer.texture.getHeight()) / renderer.half_window_h;
 
