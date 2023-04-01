@@ -28,12 +28,20 @@ pub fn deinit(app: *App) void {
     app.renderer.deinit();
 }
 
+var x: f32 = 150.0;
+
 pub fn update(app: *App) !bool {
     var iter = app.core.pollEvents();
     while (iter.next()) |event| {
         switch (event) {
             .close => return true,
-            .mouse_motion => |_| {
+            .key_press => |key_event| {
+                if(key_event.key == .space){
+                    app.renderer.re_draw = true;
+                }
+                if(key_event.key == .w){
+                    x += 10.0;
+                }
             },
             else => {},
         }
@@ -50,7 +58,7 @@ pub fn update(app: *App) !bool {
     try app.renderer.drawRectangle(100.0, 100.0, 400.0, 400.0, 20.0);
 
     app.renderer.setColor(0.722, 0.733, 0.149, 1.0);
-    try app.renderer.drawFilledRectangle(150.0, 350.0, 100.0, 100.0);
+    try app.renderer.drawFilledRectangle(x, 350.0, 100.0, 100.0);
     
     app.renderer.setColor(1.0, 1.0, 1.0, 0.5);
     try app.renderer.drawScaledImage(300.0, 200.0, 100.0, 100.0);

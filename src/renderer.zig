@@ -25,6 +25,7 @@ pub const Renderer = struct {
     pass: *gpu.RenderPassEncoder = undefined,
     back_buffer_view: *gpu.TextureView = undefined,
     state: State = .none,
+    re_draw: bool = false,
 
     pub fn init(core: *mach.Core, allocator: std.mem.Allocator) !Renderer {
         var queue = core.device().getQueue();
@@ -40,8 +41,8 @@ pub const Renderer = struct {
     }
 
     pub fn begin(renderer: *Renderer) void {
-        renderer.image_renderer.vertices_len = 0;
-        renderer.colored_renderer.vertices_len = 0;
+        renderer.image_renderer.re_draw = renderer.re_draw;
+        renderer.colored_renderer.re_draw = renderer.re_draw;
 
         renderer.back_buffer_view = renderer.core.swapChain().getCurrentTextureView();
         const color_attachment = gpu.RenderPassColorAttachment{
@@ -55,6 +56,10 @@ pub const Renderer = struct {
             .color_attachments = &.{color_attachment},
         });
         renderer.pass = renderer.command_encoder.beginRenderPass(&render_pass_info);
+
+        if(!renderer.re_draw) return;
+        renderer.image_renderer.vertices_len = 0;
+        renderer.colored_renderer.vertices_len = 0;
     }
 
     fn endImageRenderer(renderer: *Renderer) void {
@@ -88,6 +93,7 @@ pub const Renderer = struct {
         renderer.colored_renderer.index = 0;
 
         renderer.state = .none;
+        renderer.re_draw = false;
     }
 
     pub fn deinit(renderer: *Renderer) void {
@@ -161,6 +167,7 @@ pub const ImageRenderer = struct {
     old_index: u32 = 0,
     index: u32 = 0,
     color: [4]f32 = [_]f32{0.0, 0.0, 0.0, 0.0},
+    re_draw:bool = false,
 
     pub fn init(core: *mach.Core, queue: *gpu.Queue, allocator: std.mem.Allocator) !ImageRenderer {
         const shader_module = core.device().createShaderModuleWGSL("image_shader.wgsl", @embedFile("image_shader.wgsl"));
@@ -258,7 +265,7 @@ pub const ImageRenderer = struct {
     }
 
     pub fn draw(renderer: *ImageRenderer, pass: *gpu.RenderPassEncoder) !void {
-        renderer.queue.writeBuffer(renderer.vertex_buffer, 0, renderer.vertices[0..]);
+        if(renderer.re_draw) renderer.queue.writeBuffer(renderer.vertex_buffer, 0, renderer.vertices[0..]);
 
         pass.setPipeline(renderer.pipeline);
         pass.setVertexBuffer(0, renderer.vertex_buffer, 0, @sizeOf(ImageVertex) * renderer.vertices_len);
@@ -269,6 +276,9 @@ pub const ImageRenderer = struct {
     }
 
     pub fn drawImage(renderer: *ImageRenderer, x: f32, y: f32) !void {
+        renderer.index += 6;
+        if(!renderer.re_draw) return;
+
         if (renderer.vertices_len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
         const window_size = renderer.core.size();
@@ -287,10 +297,12 @@ pub const ImageRenderer = struct {
         renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ 1.0, 1.0 }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ 1.0, 0.0 }, .col = renderer.color };
         renderer.vertices_len += 6;
-        renderer.index += 6;
     }
 
     pub fn drawSubImage(renderer: *ImageRenderer, x: f32, y: f32, x1: f32, y1: f32, width1: f32, height1: f32) !void {
+        renderer.index += 6;
+        if(!renderer.re_draw) return;
+
         if (renderer.vertices_len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
         const window_size = renderer.core.size();
@@ -314,10 +326,12 @@ pub const ImageRenderer = struct {
         renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ sub_x + sub_width, sub_y + sub_height }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ sub_x + sub_width, sub_y }, .col = renderer.color };
         renderer.vertices_len += 6;
-        renderer.index += 6;
     }
 
     pub fn drawScaledImage(renderer: *ImageRenderer, x: f32, y: f32, width: f32, height: f32) !void {
+        renderer.index += 6;
+        if(!renderer.re_draw) return;
+
         if (renderer.vertices_len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
         const window_size = renderer.core.size();
@@ -336,10 +350,12 @@ pub const ImageRenderer = struct {
         renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ 1.0, 1.0 }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ 1.0, 0.0 }, .col = renderer.color };
         renderer.vertices_len += 6;
-        renderer.index += 6;
     }
 
     pub fn drawScaledSubImage(renderer: *ImageRenderer, x: f32, y: f32, width: f32, height: f32, x1: f32, y1: f32, width1: f32, height1: f32) !void {
+        renderer.index += 6;
+        if(!renderer.re_draw) return;
+
         if (renderer.vertices_len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
         const window_size = renderer.core.size();
@@ -363,7 +379,6 @@ pub const ImageRenderer = struct {
         renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ sub_x + sub_width, sub_y + sub_height }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ sub_x + sub_width, sub_y }, .col = renderer.color };
         renderer.vertices_len += 6;
-        renderer.index += 6;
     }
 
     fn rgb24ToRgba32(allocator: std.mem.Allocator, in: []zigimg.color.Rgb24) !zigimg.color.PixelStorage {
@@ -398,6 +413,7 @@ pub const ColoredRenderer = struct {
     color: [4]f32 = .{ 0.0, 0.0, 0.0, 0.0 },
     old_index: u32 = 0,
     index: u32 = 0,
+    re_draw: bool = false,
 
     pub fn init(core: *mach.Core, queue: *gpu.Queue) ColoredRenderer {
         const shader_module = core.device().createShaderModuleWGSL("shader.wgsl", @embedFile("shader.wgsl"));
@@ -453,7 +469,7 @@ pub const ColoredRenderer = struct {
     }
 
     pub fn draw(renderer: *ColoredRenderer, pass: *gpu.RenderPassEncoder) !void {
-        renderer.queue.writeBuffer(renderer.vertex_buffer, 0, renderer.vertices[0..]);
+        if(renderer.re_draw) renderer.queue.writeBuffer(renderer.vertex_buffer, 0, renderer.vertices[0..]);
 
         pass.setPipeline(renderer.pipeline);
         pass.setVertexBuffer(0, renderer.vertex_buffer, 0, @sizeOf(ColorVertex) * renderer.vertices_len);
@@ -471,6 +487,9 @@ pub const ColoredRenderer = struct {
     }
 
     pub fn drawFilledRectangle(renderer: *ColoredRenderer, x: f32, y: f32, width: f32, height: f32) !void {
+        renderer.index += 6;
+        if(!renderer.re_draw) return;
+
         if (renderer.vertices_len >= max_vertices_colored) return RendererError.BufferCapacityExceeded;
 
         const window_size = renderer.core.size();
@@ -489,10 +508,12 @@ pub const ColoredRenderer = struct {
         renderer.vertices[renderer.vertices_len + 4] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 5] = .{ .pos = .{ new_x + new_width, new_y }, .col = renderer.color };
         renderer.vertices_len += 6;
-        renderer.index += 6;
     }
 
     pub fn drawFilledTriangle(renderer: *ColoredRenderer, x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32) !void {
+        renderer.index += 3;
+        if(!renderer.re_draw) return;
+
         if (renderer.vertices_len >= max_vertices_colored) return RendererError.BufferCapacityExceeded;
 
         const window_size = renderer.core.size();
@@ -512,10 +533,11 @@ pub const ColoredRenderer = struct {
         renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x3, new_y3 }, .col = renderer.color };
 
         renderer.vertices_len += 3;
-        renderer.index += 3;
+        // renderer.index += 3;
     }
 
     pub fn setColor(renderer: *ColoredRenderer, r: f32, g: f32, b: f32, a: f32) void {
+        if(!renderer.re_draw) return;
         renderer.color[0] = r;
         renderer.color[1] = g;
         renderer.color[2] = b;
