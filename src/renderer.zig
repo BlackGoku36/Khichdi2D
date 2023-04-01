@@ -60,6 +60,14 @@ pub const Renderer = struct {
         if(!renderer.re_draw) return;
         renderer.image_renderer.vertices_len = 0;
         renderer.colored_renderer.vertices_len = 0;
+
+        const window_size = core.size();
+        const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
+        const half_window_h = @intToFloat(f32, window_size.height) * 0.5;
+        renderer.image_renderer.half_window_w = half_window_w;
+        renderer.image_renderer.half_window_h = half_window_h;
+        renderer.colored_renderer.half_window_w = half_window_w;
+        renderer.colored_renderer.half_window_h = half_window_h;
     }
 
     fn endImageRenderer(renderer: *Renderer) void {
@@ -168,6 +176,8 @@ pub const ImageRenderer = struct {
     index: u32 = 0,
     color: [4]f32 = [_]f32{0.0, 0.0, 0.0, 0.0},
     re_draw:bool = false,
+    half_window_w: f32,
+    half_window_h: f32,
 
     pub fn init(core: *mach.Core, queue: *gpu.Queue, allocator: std.mem.Allocator) !ImageRenderer {
         const shader_module = core.device().createShaderModuleWGSL("image_shader.wgsl", @embedFile("image_shader.wgsl"));
@@ -250,6 +260,10 @@ pub const ImageRenderer = struct {
 
         shader_module.release();
 
+        const window_size = core.size();
+        const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
+        const half_window_h = @intToFloat(f32, window_size.height) * 0.5;
+
         return ImageRenderer{
             .core = core,
             .pipeline = pipeline,
@@ -257,6 +271,8 @@ pub const ImageRenderer = struct {
             .vertex_buffer = vertex_buffer,
             .bind_group = bind_group,
             .texture = texture,
+            .half_window_w = half_window_w,
+            .half_window_h = half_window_h,
         };
     }
 
@@ -281,13 +297,10 @@ pub const ImageRenderer = struct {
 
         if (renderer.vertices_len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
-        const window_size = renderer.core.size();
-        const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
-        const half_window_h = @intToFloat(f32, window_size.height) * 0.5;
-        const new_x = x / half_window_w - 1.0;
-        const new_y = 1.0 - y / half_window_h;
-        const new_width = @intToFloat(f32, renderer.texture.getWidth()) / half_window_w;
-        const new_height = @intToFloat(f32, renderer.texture.getHeight()) / half_window_h;
+        const new_x = x / renderer.half_window_w - 1.0;
+        const new_y = 1.0 - y / renderer.half_window_h;
+        const new_width = @intToFloat(f32, renderer.texture.getWidth()) / renderer.half_window_w;
+        const new_height = @intToFloat(f32, renderer.texture.getHeight()) / renderer.half_window_h;
 
         renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ 1.0, 0.0 }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .uv = .{ 0.0, 0.0 }, .col = renderer.color };
@@ -305,13 +318,10 @@ pub const ImageRenderer = struct {
 
         if (renderer.vertices_len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
-        const window_size = renderer.core.size();
-        const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
-        const half_window_h = @intToFloat(f32, window_size.height) * 0.5;
         const new_x = x / half_window_w - 1.0;
         const new_y = 1.0 - y / half_window_h;
-        const new_width = @intToFloat(f32, renderer.texture.getWidth()) / half_window_w;
-        const new_height = @intToFloat(f32, renderer.texture.getHeight()) / half_window_h;
+        const new_width = @intToFloat(f32, renderer.texture.getWidth()) / renderer.half_window_w;
+        const new_height = @intToFloat(f32, renderer.texture.getHeight()) / renderer.half_window_h;
 
         const sub_x = x1 / @intToFloat(f32, renderer.texture.getWidth());
         const sub_y = y1 / @intToFloat(f32, renderer.texture.getHeight());
@@ -334,13 +344,10 @@ pub const ImageRenderer = struct {
 
         if (renderer.vertices_len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
-        const window_size = renderer.core.size();
-        const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
-        const half_window_h = @intToFloat(f32, window_size.height) * 0.5;
-        const new_x = x / half_window_w - 1.0;
-        const new_y = 1.0 - y / half_window_h;
-        const new_width = width / half_window_w;
-        const new_height = height / half_window_h;
+        const new_x = x / renderer.half_window_w - 1.0;
+        const new_y = 1.0 - y / renderer.half_window_h;
+        const new_width = width / renderer.half_window_w;
+        const new_height = height / renderer.half_window_h;
 
         renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ 1.0, 0.0 }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .uv = .{ 0.0, 0.0 }, .col = renderer.color };
@@ -358,13 +365,10 @@ pub const ImageRenderer = struct {
 
         if (renderer.vertices_len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
-        const window_size = renderer.core.size();
-        const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
-        const half_window_h = @intToFloat(f32, window_size.height) * 0.5;
-        const new_x = x / half_window_w - 1.0;
-        const new_y = 1.0 - y / half_window_h;
-        const new_width = width / half_window_w;
-        const new_height = height / half_window_h;
+        const new_x = x / renderer.half_window_w - 1.0;
+        const new_y = 1.0 - y / renderer.half_window_h;
+        const new_width = width / renderer.half_window_w;
+        const new_height = height / renderer.half_window_h;
 
         const sub_x = x1 / @intToFloat(f32, renderer.texture.getWidth());
         const sub_y = y1 / @intToFloat(f32, renderer.texture.getHeight());
@@ -414,6 +418,8 @@ pub const ColoredRenderer = struct {
     old_index: u32 = 0,
     index: u32 = 0,
     re_draw: bool = false,
+    half_window_w: f32,
+    half_window_h: f32,
 
     pub fn init(core: *mach.Core, queue: *gpu.Queue) ColoredRenderer {
         const shader_module = core.device().createShaderModuleWGSL("shader.wgsl", @embedFile("shader.wgsl"));
@@ -460,11 +466,17 @@ pub const ColoredRenderer = struct {
 
         shader_module.release();
 
+        const window_size = core.size();
+        const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
+        const half_window_h = @intToFloat(f32, window_size.height) * 0.5;
+
         return ColoredRenderer{
             .core = core,
             .pipeline = pipeline,
             .queue = queue,
             .vertex_buffer = vertex_buffer,
+            .half_window_w = half_window_w,
+            .half_window_h = half_window_h,
         };
     }
 
@@ -492,13 +504,10 @@ pub const ColoredRenderer = struct {
 
         if (renderer.vertices_len >= max_vertices_colored) return RendererError.BufferCapacityExceeded;
 
-        const window_size = renderer.core.size();
-        const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
-        const half_window_h = @intToFloat(f32, window_size.height) * 0.5;
-        const new_x = x / half_window_w - 1.0;
-        const new_y = 1.0 - y / half_window_h;
-        const new_width = width / half_window_w;
-        const new_height = height / half_window_h;
+        const new_x = x / renderer.half_window_w - 1.0;
+        const new_y = 1.0 - y / renderer.half_window_h;
+        const new_width = width / renderer.half_window_w;
+        const new_height = height / renderer.half_window_h;
 
         renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .col = renderer.color };
@@ -516,24 +525,20 @@ pub const ColoredRenderer = struct {
 
         if (renderer.vertices_len >= max_vertices_colored) return RendererError.BufferCapacityExceeded;
 
-        const window_size = renderer.core.size();
-        const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
-        const half_window_h = @intToFloat(f32, window_size.height) * 0.5;
-        const new_x1 = x1 / half_window_w - 1.0;
-        const new_y1 = 1.0 - y1 / half_window_h;
+        const new_x1 = x1 / renderer.half_window_w - 1.0;
+        const new_y1 = 1.0 - y1 / renderer.half_window_h;
 
-        const new_x2 = x2 / half_window_w - 1.0;
-        const new_y2 = 1.0 - y2 / half_window_h;
+        const new_x2 = x2 / renderer.half_window_w - 1.0;
+        const new_y2 = 1.0 - y2 / renderer.half_window_h;
 
-        const new_x3 = x3 / half_window_w - 1.0;
-        const new_y3 = 1.0 - y3 / half_window_h;
+        const new_x3 = x3 / renderer.half_window_w - 1.0;
+        const new_y3 = 1.0 - y3 / renderer.half_window_h;
 
         renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x1, new_y1 }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x2, new_y2 }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x3, new_y3 }, .col = renderer.color };
 
         renderer.vertices_len += 3;
-        // renderer.index += 3;
     }
 
     pub fn setColor(renderer: *ColoredRenderer, r: f32, g: f32, b: f32, a: f32) void {
