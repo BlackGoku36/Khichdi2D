@@ -14,7 +14,7 @@ const State = enum{
 };
 
 const max_vertices_colored: u32 = 6 * 1000 + 3 * 1000; // 1000 rect + 1000 tris
-const max_vertices_images: u32 = 6 * 1000; // 1000 images
+const max_vertices_images: u32 = 6 * 4000; // 1000 images
 
 pub const Renderer = struct {
     core: *mach.Core,
@@ -86,6 +86,11 @@ pub const Renderer = struct {
 
         renderer.pass.end();
         renderer.pass.release();
+
+        if(renderer.re_draw){
+            renderer.queue.writeBuffer(renderer.image_renderer.vertex_buffer, 0, renderer.image_renderer.vertices[0..]);
+            renderer.queue.writeBuffer(renderer.colored_renderer.vertex_buffer, 0, renderer.colored_renderer.vertices[0..]);
+        }
 
         var command = renderer.command_encoder.finish(null);
         renderer.command_encoder.release();
@@ -281,8 +286,6 @@ pub const ImageRenderer = struct {
     }
 
     pub fn draw(renderer: *ImageRenderer, pass: *gpu.RenderPassEncoder) !void {
-        if(renderer.re_draw) renderer.queue.writeBuffer(renderer.vertex_buffer, 0, renderer.vertices[0..]);
-
         pass.setPipeline(renderer.pipeline);
         pass.setVertexBuffer(0, renderer.vertex_buffer, 0, @sizeOf(ImageVertex) * renderer.vertices_len);
         pass.setBindGroup(0, renderer.bind_group, &.{});
@@ -481,8 +484,6 @@ pub const ColoredRenderer = struct {
     }
 
     pub fn draw(renderer: *ColoredRenderer, pass: *gpu.RenderPassEncoder) !void {
-        if(renderer.re_draw) renderer.queue.writeBuffer(renderer.vertex_buffer, 0, renderer.vertices[0..]);
-
         pass.setPipeline(renderer.pipeline);
         pass.setVertexBuffer(0, renderer.vertex_buffer, 0, @sizeOf(ColorVertex) * renderer.vertices_len);
         pass.draw(renderer.index - renderer.old_index, 1, renderer.old_index, 0);
