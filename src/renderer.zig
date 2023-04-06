@@ -10,13 +10,13 @@ const RendererError = error{
 };
 
 const State = enum{
-    none, colored, image
+    colored, image
 };
 
-const max_colored: u32 = 1000; // 1000 rect + 1000 tris
-const max_vertices_colored: u32 = 4 * max_colored + 3 * max_colored;
-const max_indices_colored: u32 = 6 * max_colored + 3 * max_colored;
-const max_images = 1000;
+const max_colored: u32 = 4000;
+const max_vertices_colored: u32 = max_colored * 4;
+const max_indices_colored: u32 = max_colored * 6;
+const max_images:u32 = 4000;
 const max_vertices_images: u32 = max_images * 4;
 const max_indices_images: u32 = max_images * 6;
 
@@ -28,7 +28,7 @@ pub const Renderer = struct {
     command_encoder: *gpu.CommandEncoder = undefined,
     pass: *gpu.RenderPassEncoder = undefined,
     back_buffer_view: *gpu.TextureView = undefined,
-    state: State = .none,
+    state: State = .colored,
     re_draw: bool = false,
 
     pub fn init(core: *mach.Core, allocator: std.mem.Allocator) !Renderer {
@@ -95,7 +95,6 @@ pub const Renderer = struct {
 
         if(renderer.re_draw){
             renderer.queue.writeBuffer(renderer.image_renderer.vertex_buffer, 0, renderer.image_renderer.vertices[0..]);
-            renderer.queue.writeBuffer(renderer.image_renderer.index_buffer, 0, renderer.image_renderer.indices[0..]);
             renderer.queue.writeBuffer(renderer.colored_renderer.vertex_buffer, 0, renderer.colored_renderer.vertices[0..]);
             renderer.queue.writeBuffer(renderer.colored_renderer.index_buffer, 0, renderer.colored_renderer.indices[0..]);
         }
@@ -113,52 +112,45 @@ pub const Renderer = struct {
         renderer.colored_renderer.old_index = 0;
         renderer.colored_renderer.index = 0;
 
-        renderer.state = .none;
         renderer.re_draw = false;
     }
 
     pub fn deinit(renderer: *Renderer) void {
         renderer.image_renderer.deinit();
+        renderer.colored_renderer.deinit();
     }
 
     pub fn drawImage(renderer: *Renderer, x: f32, y: f32) !void {
-        if(renderer.state == .none) renderer.state = .image;
         if(renderer.state == .colored) renderer.endColoredRenderer();
         try renderer.image_renderer.drawImage(x, y);
     }
 
     pub fn drawSubImage(renderer: *Renderer, x: f32, y: f32, x1: f32, y1: f32, width1: f32, height1: f32) !void {
-        if(renderer.state == .none) renderer.state = .image;
         if(renderer.state == .colored) renderer.endColoredRenderer();
         try renderer.image_renderer.drawSubImage(x, y, x1, y1, width1, height1); 
     }
 
     pub fn drawScaledImage(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32) !void {
-        if(renderer.state == .none) renderer.state = .image;
         if(renderer.state == .colored) renderer.endColoredRenderer();
         try renderer.image_renderer.drawScaledImage(x, y, width, height);
     }
 
-    pub fn drawScaledSubImage(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32, x1: f32, y1: f32, width1: f32, height1: f32) !void {
-        if(renderer.state == .none) renderer.state = .image;
+    pub fn drawScaledSubImage(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32, x1: f32, y1: f32, width1: f32, height1: f32) callconv(.Inline) !void {
         if(renderer.state == .colored) renderer.endColoredRenderer();
         try renderer.image_renderer.drawScaledSubImage(x, y, width, height, x1, y1, width1, height1);
     }
 
     pub fn drawRectangle(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32, thiccness: f32) !void {
-        if(renderer.state == .none) renderer.state = .colored;
         if(renderer.state == .image) renderer.endImageRenderer();
         try renderer.colored_renderer.drawRectangle(x, y, width, height, thiccness);
     }
 
     pub fn drawFilledRectangle(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32) !void {
-        if(renderer.state == .none) renderer.state = .colored;
         if(renderer.state == .image) renderer.endImageRenderer();
         try renderer.colored_renderer.drawFilledRectangle(x, y, width, height);
     }
 
     pub fn drawFilledTriangle(renderer: *Renderer, x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32) !void {
-        if(renderer.state == .none) renderer.state = .colored;
         if(renderer.state == .image) renderer.endImageRenderer();
         try renderer.colored_renderer.drawFilledTriangle(x1, y1, x2, y2, x3, y3);
     }
@@ -183,7 +175,6 @@ pub const ImageRenderer = struct {
     vertex_buffer: *gpu.Buffer,
     index_buffer: *gpu.Buffer,
     vertices: [max_vertices_images]ImageVertex = undefined,
-    indices: [max_indices_images]u32 = undefined,
     vertices_len: u32 = 0,
     indices_len: u32 = 0,
     bind_group: *gpu.BindGroup,
@@ -232,6 +223,22 @@ pub const ImageRenderer = struct {
             .usage = .{ .index = true, .copy_dst = true },
             .size = @sizeOf(u32) * max_indices_images,
         });
+
+        var indices: [max_indices_images]u32 = undefined;
+
+        var i: u32 = 0;
+        var j: u32 = 0;
+
+        while(i < max_indices_images) : (i += 6){
+            indices[i + 0] = j + 0;
+            indices[i + 1] = j + 1;
+            indices[i + 2] = j + 2;
+            indices[i + 3] = j + 2;
+            indices[i + 4] = j + 3;
+            indices[i + 5] = j + 0;
+            j += 4;
+        }
+        queue.writeBuffer(index_buffer, 0, indices[0..]);
 
         const vertex = gpu.VertexState.init(.{
             .module = shader_module,
@@ -302,6 +309,8 @@ pub const ImageRenderer = struct {
     }
 
     pub fn deinit(renderer: *ImageRenderer) void {
+        renderer.vertex_buffer.release();
+        renderer.index_buffer.release();
         renderer.bind_group.release();
     }
 
@@ -331,13 +340,6 @@ pub const ImageRenderer = struct {
         renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ 0.0, 1.0 }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ 1.0, 1.0 }, .col = renderer.color };
 
-        renderer.indices[renderer.indices_len + 0] = renderer.vertices_len + 0;
-        renderer.indices[renderer.indices_len + 1] = renderer.vertices_len + 1;
-        renderer.indices[renderer.indices_len + 2] = renderer.vertices_len + 2;
-        renderer.indices[renderer.indices_len + 3] = renderer.vertices_len + 2;
-        renderer.indices[renderer.indices_len + 4] = renderer.vertices_len + 3;
-        renderer.indices[renderer.indices_len + 5] = renderer.vertices_len + 0;
-
         renderer.vertices_len += 4;
         renderer.indices_len += 6;
     }
@@ -362,13 +364,6 @@ pub const ImageRenderer = struct {
         renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .uv = .{ sub_x, sub_y }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ sub_x, sub_y + sub_height }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ sub_x + sub_width, sub_y + sub_height }, .col = renderer.color };
-        
-        renderer.indices[renderer.indices_len + 0] = renderer.vertices_len + 0;
-        renderer.indices[renderer.indices_len + 1] = renderer.vertices_len + 1;
-        renderer.indices[renderer.indices_len + 2] = renderer.vertices_len + 2;
-        renderer.indices[renderer.indices_len + 3] = renderer.vertices_len + 2;
-        renderer.indices[renderer.indices_len + 4] = renderer.vertices_len + 3;
-        renderer.indices[renderer.indices_len + 5] = renderer.vertices_len + 0;
 
         renderer.vertices_len += 4;
         renderer.indices_len += 6;
@@ -389,13 +384,6 @@ pub const ImageRenderer = struct {
         renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .uv = .{ 0.0, 0.0 }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ 0.0, 1.0 }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ 1.0, 1.0 }, .col = renderer.color };
-        
-        renderer.indices[renderer.indices_len + 0] = renderer.vertices_len + 0;
-        renderer.indices[renderer.indices_len + 1] = renderer.vertices_len + 1;
-        renderer.indices[renderer.indices_len + 2] = renderer.vertices_len + 2;
-        renderer.indices[renderer.indices_len + 3] = renderer.vertices_len + 2;
-        renderer.indices[renderer.indices_len + 4] = renderer.vertices_len + 3;
-        renderer.indices[renderer.indices_len + 5] = renderer.vertices_len + 0;
 
         renderer.vertices_len += 4;
         renderer.indices_len += 6;
@@ -421,13 +409,6 @@ pub const ImageRenderer = struct {
         renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .uv = .{ sub_x, sub_y }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height }, .uv = .{ sub_x, sub_y + sub_height }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .uv = .{ sub_x + sub_width, sub_y + sub_height }, .col = renderer.color };
-        
-        renderer.indices[renderer.indices_len + 0] = renderer.vertices_len + 0;
-        renderer.indices[renderer.indices_len + 1] = renderer.vertices_len + 1;
-        renderer.indices[renderer.indices_len + 2] = renderer.vertices_len + 2;
-        renderer.indices[renderer.indices_len + 3] = renderer.vertices_len + 2;
-        renderer.indices[renderer.indices_len + 4] = renderer.vertices_len + 3;
-        renderer.indices[renderer.indices_len + 5] = renderer.vertices_len + 0;
 
         renderer.vertices_len += 4;
         renderer.indices_len += 6;
@@ -475,13 +456,7 @@ pub const ColoredRenderer = struct {
     pub fn init(core: *mach.Core, queue: *gpu.Queue) ColoredRenderer {
         const shader_module = core.device().createShaderModuleWGSL("shader.wgsl", @embedFile("shader.wgsl"));
 
-        const blend = gpu.BlendState{
-            .color = .{
-                .operation = .add,
-                .src_factor = .src_alpha,
-                .dst_factor = .one_minus_src_alpha,
-            },
-        };
+        const blend = gpu.BlendState{};
         const color_target = gpu.ColorTargetState{ .format = core.descriptor().format, .blend = &blend, .write_mask = gpu.ColorWriteMaskFlags.all };
 
         const fragment = gpu.FragmentState.init(.{ .module = shader_module, .entry_point = "frag_main", .targets = &.{color_target} });
@@ -537,6 +512,11 @@ pub const ColoredRenderer = struct {
             .half_window_w = half_window_w,
             .half_window_h = half_window_h,
         };
+    }
+
+    pub fn deinit(renderer: *ColoredRenderer) void {
+        renderer.vertex_buffer.release();
+        renderer.index_buffer.release();
     }
 
     pub fn draw(renderer: *ColoredRenderer, pass: *gpu.RenderPassEncoder) !void {
