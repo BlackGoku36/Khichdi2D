@@ -43,8 +43,8 @@ pub fn build(b: *std.Build) !void {
     const compile_step = b.step("compile", "Compile the game");
     compile_step.dependOn(&app.getInstallStep().?.step);
 
-    const run_cmd = try app.run();
-    run_cmd.dependOn(compile_step);
+    const run_cmd = app.run();
+    run_cmd.step.dependOn(compile_step);
     const run_step = b.step("run", "Run the game");
-    run_step.dependOn(run_cmd);
+    run_step.dependOn(&run_cmd.step);
 }
