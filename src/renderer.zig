@@ -456,7 +456,14 @@ pub const ColoredRenderer = struct {
     pub fn init(core: *mach.Core, queue: *gpu.Queue) ColoredRenderer {
         const shader_module = core.device().createShaderModuleWGSL("shader.wgsl", @embedFile("shader.wgsl"));
 
-        const blend = gpu.BlendState{};
+        const blend = gpu.BlendState{
+             .color = .{
+                 .operation = .add,
+                 .src_factor = .src_alpha,
+                 .dst_factor = .one_minus_src_alpha,
+            },
+        };
+
         const color_target = gpu.ColorTargetState{ .format = core.descriptor().format, .blend = &blend, .write_mask = gpu.ColorWriteMaskFlags.all };
 
         const fragment = gpu.FragmentState.init(.{ .module = shader_module, .entry_point = "frag_main", .targets = &.{color_target} });
