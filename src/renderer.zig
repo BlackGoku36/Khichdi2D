@@ -9,14 +9,12 @@ const RendererError = error{
     BufferCapacityExceeded,
 };
 
-const State = enum{
-    colored, image
-};
+const State = enum { colored, image };
 
 const max_colored: u32 = 4000;
 const max_vertices_colored: u32 = max_colored * 4;
 const max_indices_colored: u32 = max_colored * 6;
-const max_images:u32 = 4000;
+const max_images: u32 = 4000;
 const max_vertices_images: u32 = max_images * 4;
 const max_indices_images: u32 = max_images * 6;
 
@@ -36,12 +34,7 @@ pub const Renderer = struct {
         var image_renderer = try ImageRenderer.init(core, queue, allocator);
         var colored_renderer = ColoredRenderer.init(core, queue);
 
-        return Renderer{
-            .core = core,
-            .queue = queue,
-            .image_renderer = image_renderer,
-            .colored_renderer = colored_renderer
-        };
+        return Renderer{ .core = core, .queue = queue, .image_renderer = image_renderer, .colored_renderer = colored_renderer };
     }
 
     pub fn begin(renderer: *Renderer) void {
@@ -61,7 +54,7 @@ pub const Renderer = struct {
         });
         renderer.pass = renderer.command_encoder.beginRenderPass(&render_pass_info);
 
-        if(!renderer.re_draw) return;
+        if (!renderer.re_draw) return;
         renderer.image_renderer.vertices_len = 0;
         renderer.image_renderer.indices_len = 0;
         renderer.colored_renderer.vertices_len = 0;
@@ -77,12 +70,12 @@ pub const Renderer = struct {
     }
 
     fn endImageRenderer(renderer: *Renderer) void {
-        if(renderer.image_renderer.vertices_len > 0) try renderer.image_renderer.draw(renderer.pass);
+        if (renderer.image_renderer.vertices_len > 0) try renderer.image_renderer.draw(renderer.pass);
         renderer.state = .colored;
     }
 
     fn endColoredRenderer(renderer: *Renderer) void {
-        if(renderer.colored_renderer.vertices_len > 0) try renderer.colored_renderer.draw(renderer.pass);
+        if (renderer.colored_renderer.vertices_len > 0) try renderer.colored_renderer.draw(renderer.pass);
         renderer.state = .image;
     }
 
@@ -93,7 +86,7 @@ pub const Renderer = struct {
         renderer.pass.end();
         renderer.pass.release();
 
-        if(renderer.re_draw){
+        if (renderer.re_draw) {
             renderer.queue.writeBuffer(renderer.image_renderer.vertex_buffer, 0, renderer.image_renderer.vertices[0..]);
             renderer.queue.writeBuffer(renderer.colored_renderer.vertex_buffer, 0, renderer.colored_renderer.vertices[0..]);
             renderer.queue.writeBuffer(renderer.colored_renderer.index_buffer, 0, renderer.colored_renderer.indices[0..]);
@@ -121,46 +114,45 @@ pub const Renderer = struct {
     }
 
     pub fn drawImage(renderer: *Renderer, x: f32, y: f32) !void {
-        if(renderer.state == .colored) renderer.endColoredRenderer();
+        if (renderer.state == .colored) renderer.endColoredRenderer();
         try renderer.image_renderer.drawImage(x, y);
     }
 
     pub fn drawSubImage(renderer: *Renderer, x: f32, y: f32, x1: f32, y1: f32, width1: f32, height1: f32) !void {
-        if(renderer.state == .colored) renderer.endColoredRenderer();
-        try renderer.image_renderer.drawSubImage(x, y, x1, y1, width1, height1); 
+        if (renderer.state == .colored) renderer.endColoredRenderer();
+        try renderer.image_renderer.drawSubImage(x, y, x1, y1, width1, height1);
     }
 
     pub fn drawScaledImage(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32) !void {
-        if(renderer.state == .colored) renderer.endColoredRenderer();
+        if (renderer.state == .colored) renderer.endColoredRenderer();
         try renderer.image_renderer.drawScaledImage(x, y, width, height);
     }
 
-    pub fn drawScaledSubImage(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32, x1: f32, y1: f32, width1: f32, height1: f32) callconv(.Inline) !void {
-        if(renderer.state == .colored) renderer.endColoredRenderer();
+    pub inline fn drawScaledSubImage(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32, x1: f32, y1: f32, width1: f32, height1: f32) !void {
+        if (renderer.state == .colored) renderer.endColoredRenderer();
         try renderer.image_renderer.drawScaledSubImage(x, y, width, height, x1, y1, width1, height1);
     }
 
     pub fn drawRectangle(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32, thiccness: f32) !void {
-        if(renderer.state == .image) renderer.endImageRenderer();
+        if (renderer.state == .image) renderer.endImageRenderer();
         try renderer.colored_renderer.drawRectangle(x, y, width, height, thiccness);
     }
 
     pub fn drawFilledRectangle(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32) !void {
-        if(renderer.state == .image) renderer.endImageRenderer();
+        if (renderer.state == .image) renderer.endImageRenderer();
         try renderer.colored_renderer.drawFilledRectangle(x, y, width, height);
     }
 
     pub fn drawFilledTriangle(renderer: *Renderer, x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32) !void {
-        if(renderer.state == .image) renderer.endImageRenderer();
+        if (renderer.state == .image) renderer.endImageRenderer();
         try renderer.colored_renderer.drawFilledTriangle(x1, y1, x2, y2, x3, y3);
     }
 
     pub fn setColor(renderer: *Renderer, r: f32, g: f32, b: f32, a: f32) void {
-        if(!renderer.re_draw) return;
+        if (!renderer.re_draw) return;
         renderer.colored_renderer.setColor(r, g, b, a);
         renderer.image_renderer.setColor(r, g, b, a);
     }
-
 };
 
 pub const ImageVertex = extern struct {
@@ -182,8 +174,8 @@ pub const ImageRenderer = struct {
     texture: *gpu.Texture,
     old_index: u32 = 0,
     index: u32 = 0,
-    color: [4]f32 = [_]f32{0.0, 0.0, 0.0, 0.0},
-    re_draw:bool = false,
+    color: [4]f32 = [_]f32{ 0.0, 0.0, 0.0, 0.0 },
+    re_draw: bool = false,
     half_window_w: f32,
     half_window_h: f32,
 
@@ -230,7 +222,7 @@ pub const ImageRenderer = struct {
         var i: u32 = 0;
         var j: u32 = 0;
 
-        while(i < max_indices_images) : (i += 6){
+        while (i < max_indices_images) : (i += 6) {
             indices[i + 0] = j + 0;
             indices[i + 1] = j + 1;
             indices[i + 2] = j + 2;
@@ -327,7 +319,7 @@ pub const ImageRenderer = struct {
 
     pub fn drawImage(renderer: *ImageRenderer, x: f32, y: f32) !void {
         renderer.index += 6;
-        if(!renderer.re_draw) return;
+        if (!renderer.re_draw) return;
 
         if (renderer.vertices_len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
@@ -347,7 +339,7 @@ pub const ImageRenderer = struct {
 
     pub fn drawSubImage(renderer: *ImageRenderer, x: f32, y: f32, x1: f32, y1: f32, width1: f32, height1: f32) !void {
         renderer.index += 6;
-        if(!renderer.re_draw) return;
+        if (!renderer.re_draw) return;
 
         if (renderer.vertices_len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
@@ -372,7 +364,7 @@ pub const ImageRenderer = struct {
 
     pub fn drawScaledImage(renderer: *ImageRenderer, x: f32, y: f32, width: f32, height: f32) !void {
         renderer.index += 6;
-        if(!renderer.re_draw) return;
+        if (!renderer.re_draw) return;
 
         if (renderer.vertices_len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
@@ -392,7 +384,7 @@ pub const ImageRenderer = struct {
 
     pub fn drawScaledSubImage(renderer: *ImageRenderer, x: f32, y: f32, width: f32, height: f32, x1: f32, y1: f32, width1: f32, height1: f32) !void {
         renderer.index += 6;
-        if(!renderer.re_draw) return;
+        if (!renderer.re_draw) return;
 
         if (renderer.vertices_len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
@@ -424,7 +416,7 @@ pub const ImageRenderer = struct {
         return out;
     }
 
-    pub fn setColor(renderer: *ImageRenderer, r:f32, g:f32, b: f32, a: f32) void {
+    pub fn setColor(renderer: *ImageRenderer, r: f32, g: f32, b: f32, a: f32) void {
         renderer.color[0] = r;
         renderer.color[1] = g;
         renderer.color[2] = b;
@@ -458,10 +450,10 @@ pub const ColoredRenderer = struct {
         const shader_module = core.device().createShaderModuleWGSL("shader.wgsl", @embedFile("shader.wgsl"));
 
         const blend = gpu.BlendState{
-             .color = .{
-                 .operation = .add,
-                 .src_factor = .src_alpha,
-                 .dst_factor = .one_minus_src_alpha,
+            .color = .{
+                .operation = .add,
+                .src_factor = .src_alpha,
+                .dst_factor = .one_minus_src_alpha,
             },
         };
 
@@ -546,7 +538,7 @@ pub const ColoredRenderer = struct {
 
     pub fn drawFilledRectangle(renderer: *ColoredRenderer, x: f32, y: f32, width: f32, height: f32) !void {
         renderer.index += 6;
-        if(!renderer.re_draw) return;
+        if (!renderer.re_draw) return;
 
         if (renderer.vertices_len >= max_vertices_colored) return RendererError.BufferCapacityExceeded;
 
@@ -559,7 +551,7 @@ pub const ColoredRenderer = struct {
         renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 2] = .{ .pos = .{ new_x, new_y - new_height }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 3] = .{ .pos = .{ new_x + new_width, new_y - new_height }, .col = renderer.color };
-        
+
         renderer.indices[renderer.indices_len + 0] = renderer.vertices_len + 0;
         renderer.indices[renderer.indices_len + 1] = renderer.vertices_len + 1;
         renderer.indices[renderer.indices_len + 2] = renderer.vertices_len + 2;
@@ -573,7 +565,7 @@ pub const ColoredRenderer = struct {
 
     pub fn drawFilledTriangle(renderer: *ColoredRenderer, x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32) !void {
         renderer.index += 3;
-        if(!renderer.re_draw) return;
+        if (!renderer.re_draw) return;
 
         if (renderer.vertices_len >= max_vertices_colored) return RendererError.BufferCapacityExceeded;
 
@@ -599,7 +591,7 @@ pub const ColoredRenderer = struct {
     }
 
     pub fn setColor(renderer: *ColoredRenderer, r: f32, g: f32, b: f32, a: f32) void {
-        if(!renderer.re_draw) return;
+        if (!renderer.re_draw) return;
         renderer.color[0] = r;
         renderer.color[1] = g;
         renderer.color[2] = b;
