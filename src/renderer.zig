@@ -597,7 +597,6 @@ pub const ColoredRenderer = struct {
     }
 
     pub fn setColor(renderer: *ColoredRenderer, r: f32, g: f32, b: f32, a: f32) void {
-        if (!renderer.re_draw) return;
         renderer.color[0] = r;
         renderer.color[1] = g;
         renderer.color[2] = b;
