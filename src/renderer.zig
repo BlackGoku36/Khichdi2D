@@ -343,15 +343,18 @@ pub const ImageRenderer = struct {
 
         if (renderer.vertices_len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
+        const tex_width: f32 = @intToFloat(f32, renderer.texture.getWidth());
+        const tex_height: f32 = @intToFloat(f32, renderer.texture.getHeight());
+
         const new_x = x / renderer.half_window_w - 1.0;
         const new_y = 1.0 - y / renderer.half_window_h;
-        const new_width = @intToFloat(f32, renderer.texture.getWidth()) / renderer.half_window_w;
-        const new_height = @intToFloat(f32, renderer.texture.getHeight()) / renderer.half_window_h;
+        const new_width = tex_width / renderer.half_window_w;
+        const new_height = tex_height / renderer.half_window_h;
 
-        const sub_x = x1 / @intToFloat(f32, renderer.texture.getWidth());
-        const sub_y = y1 / @intToFloat(f32, renderer.texture.getHeight());
-        const sub_width = width1 / @intToFloat(f32, renderer.texture.getWidth());
-        const sub_height = height1 / @intToFloat(f32, renderer.texture.getHeight());
+        const sub_x = x1 / tex_width;
+        const sub_y = y1 / tex_height;
+        const sub_width = width1 / tex_width;
+        const sub_height = height1 / tex_height;
 
         renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ sub_x + sub_width, sub_y }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .uv = .{ sub_x, sub_y }, .col = renderer.color };
@@ -388,15 +391,18 @@ pub const ImageRenderer = struct {
 
         if (renderer.vertices_len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
+        const tex_width: f32 = @intToFloat(f32, renderer.texture.getWidth());
+        const tex_height: f32 = @intToFloat(f32, renderer.texture.getHeight());
+
         const new_x = x / renderer.half_window_w - 1.0;
         const new_y = 1.0 - y / renderer.half_window_h;
         const new_width = width / renderer.half_window_w;
         const new_height = height / renderer.half_window_h;
 
-        const sub_x = x1 / @intToFloat(f32, renderer.texture.getWidth());
-        const sub_y = y1 / @intToFloat(f32, renderer.texture.getHeight());
-        const sub_width = width1 / @intToFloat(f32, renderer.texture.getWidth());
-        const sub_height = height1 / @intToFloat(f32, renderer.texture.getHeight());
+        const sub_x = x1 / tex_width;
+        const sub_y = y1 / tex_height;
+        const sub_width = width1 / tex_width;
+        const sub_height = height1 / tex_height;
 
         renderer.vertices[renderer.vertices_len + 0] = .{ .pos = .{ new_x + new_width, new_y }, .uv = .{ sub_x + sub_width, sub_y }, .col = renderer.color };
         renderer.vertices[renderer.vertices_len + 1] = .{ .pos = .{ new_x, new_y }, .uv = .{ sub_x, sub_y }, .col = renderer.color };
