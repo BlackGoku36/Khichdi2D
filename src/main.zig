@@ -26,8 +26,7 @@ pub fn deinit(app: *App) void {
     app.renderer.deinit();
 }
 
-
-pub fn random_float(app:*App, min: f32, max: f32) f32 {
+pub fn random_float(app: *App, min: f32, max: f32) f32 {
     const range = max - min;
     const random = app.random.random().float(f32) * range;
     return min + random;
@@ -39,7 +38,7 @@ pub fn update(app: *App) !bool {
         switch (event) {
             .close => return true,
             .key_press => |key_event| {
-                if(key_event.key == .space){
+                if (key_event.key == .space) {
                     // app.renderer.re_draw = true;
                 }
             },
@@ -49,28 +48,22 @@ pub fn update(app: *App) !bool {
 
     app.renderer.re_draw = true;
 
-    // const width = @intToFloat(f32, app.core.size().width);
-    // const height = @intToFloat(f32, app.core.size().height);
+    const width = @intToFloat(f32, app.core.size().width);
+    const height = @intToFloat(f32, app.core.size().height);
 
     app.renderer.begin();
 
-    const x: f32= 0.0;
-    const y: f32= 0.0;
-
     for (0..4000) |_| {
-        // x += i;
-        // y += i;
-        // const x = app.random_float(0.0,  width);
-        // const y = app.random_float(0.0,  height);
+        const x = app.random_float(0.0, width);
+        const y = app.random_float(0.0, height);
 
-        // if (i % 2 == 0){
-            // app.renderer.setColor(0.722, 0.733, 0.149, 0.2);
-            // try app.renderer.drawFilledRectangle(x, y, 100.0, 100.0);
-            // try app.renderer.drawFilledTriangle(x, y, x+150.0, y, x+150.0, y+150.0);
-        // }else{
-            app.renderer.setColor(1.0, 1.0, 1.0, 0.5);
-            try app.renderer.drawScaledImage(x, y, 100.0, 100.0);
-        // }
+        if (i % 2 == 0) {
+            app.renderer.setColor(0.722, 0.733, 0.149, 0.2);
+            try app.renderer.drawFilledRectangle(x, y, 10.0, 10.0);
+        } else {
+            app.renderer.setColor(1.0, 1.0, 1.0, 1.0);
+            try app.renderer.drawScaledImage(x, y, 50.0, 50.0);
+        }
     }
 
     // app.renderer.setColor(0.235, 0.22, 0.212, 1.0);
@@ -81,7 +74,7 @@ pub fn update(app: *App) !bool {
 
     // app.renderer.setColor(0.722, 0.733, 0.149, 1.0);
     // try app.renderer.drawFilledRectangle(150.0, 350.0, 100.0, 100.0);
-    
+
     // app.renderer.setColor(1.0, 1.0, 1.0, 0.5);
     // try app.renderer.drawScaledImage(300.0, 200.0, 100.0, 100.0);
 

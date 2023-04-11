@@ -11,10 +11,10 @@ const RendererError = error{
 
 const State = enum { colored, image };
 
-const max_colored: u32 = 4000;
+const max_colored: u32 = 3000;
 const max_vertices_colored: u32 = max_colored * 4;
 const max_indices_colored: u32 = max_colored * 6;
-const max_images: u32 = 4000;
+const max_images: u32 = 3000;
 const max_vertices_images: u32 = max_images * 4;
 const max_indices_images: u32 = max_images * 6;
 
@@ -28,16 +28,25 @@ pub const Renderer = struct {
     back_buffer_view: *gpu.TextureView = undefined,
     state: State = .colored,
     re_draw: bool = false,
+    debug_timer: mach.Timer,
+    debug_draw_image: u32 = 0,
+    debug_draw_colored: u32 = 0,
 
     pub fn init(core: *mach.Core, allocator: std.mem.Allocator) !Renderer {
+        var debug_timer = try mach.Timer.start();
+
         var queue = core.device().getQueue();
         var image_renderer = try ImageRenderer.init(core, queue, allocator);
         var colored_renderer = ColoredRenderer.init(core, queue);
 
-        return Renderer{ .core = core, .queue = queue, .image_renderer = image_renderer, .colored_renderer = colored_renderer };
+        std.log.info("Renderer init time: {d} ms", .{@intToFloat(f32, debug_timer.lapPrecise()) / @intToFloat(f32, std.time.ns_per_ms)});
+
+        return Renderer{ .core = core, .queue = queue, .image_renderer = image_renderer, .colored_renderer = colored_renderer, .debug_timer = debug_timer };
     }
 
     pub fn begin(renderer: *Renderer) void {
+        _ = renderer.debug_timer.reset();
+
         renderer.image_renderer.re_draw = renderer.re_draw;
         renderer.colored_renderer.re_draw = renderer.re_draw;
 
@@ -54,32 +63,47 @@ pub const Renderer = struct {
         });
         renderer.pass = renderer.command_encoder.beginRenderPass(&render_pass_info);
 
-        if (!renderer.re_draw) return;
-        renderer.image_renderer.vertices_len = 0;
-        renderer.image_renderer.indices_len = 0;
-        renderer.colored_renderer.vertices_len = 0;
-        renderer.colored_renderer.indices_len = 0;
+        renderer.debug_draw_image = 0;
+        renderer.debug_draw_colored = 0;
 
-        const window_size = renderer.core.size();
-        const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
-        const half_window_h = @intToFloat(f32, window_size.height) * 0.5;
-        renderer.image_renderer.half_window_w = half_window_w;
-        renderer.image_renderer.half_window_h = half_window_h;
-        renderer.colored_renderer.half_window_w = half_window_w;
-        renderer.colored_renderer.half_window_h = half_window_h;
+        if (renderer.re_draw) {
+            renderer.image_renderer.vertices_len = 0;
+            renderer.image_renderer.indices_len = 0;
+            renderer.colored_renderer.vertices_len = 0;
+            renderer.colored_renderer.indices_len = 0;
+
+            const window_size = renderer.core.size();
+            const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
+            const half_window_h = @intToFloat(f32, window_size.height) * 0.5;
+            renderer.image_renderer.half_window_w = half_window_w;
+            renderer.image_renderer.half_window_h = half_window_h;
+            renderer.colored_renderer.half_window_w = half_window_w;
+            renderer.colored_renderer.half_window_h = half_window_h;
+        }
+
+        std.log.info("---------------------------", .{});
+        std.log.info("Renderer begin time: {d} ms", .{@intToFloat(f32, renderer.debug_timer.lapPrecise()) / @intToFloat(f32, std.time.ns_per_ms)});
     }
 
     fn endImageRenderer(renderer: *Renderer) void {
-        if (renderer.image_renderer.vertices_len > 0) try renderer.image_renderer.draw(renderer.pass);
+        if (renderer.image_renderer.vertices_len > 0) {
+            try renderer.image_renderer.draw(renderer.pass);
+            renderer.debug_draw_image += 1;
+        }
         renderer.state = .colored;
     }
 
     fn endColoredRenderer(renderer: *Renderer) void {
-        if (renderer.colored_renderer.vertices_len > 0) try renderer.colored_renderer.draw(renderer.pass);
+        if (renderer.colored_renderer.vertices_len > 0) {
+            try renderer.colored_renderer.draw(renderer.pass);
+            renderer.debug_draw_colored += 1;
+        }
         renderer.state = .image;
     }
 
     pub fn end(renderer: *Renderer) void {
+        std.log.info("Renderer paint time: {d} ms", .{@intToFloat(f32, renderer.debug_timer.lapPrecise()) / @intToFloat(f32, std.time.ns_per_ms)});
+
         renderer.endImageRenderer();
         renderer.endColoredRenderer();
 
@@ -92,12 +116,16 @@ pub const Renderer = struct {
             renderer.queue.writeBuffer(renderer.colored_renderer.index_buffer, 0, renderer.colored_renderer.indices[0..]);
         }
 
+        var gpu_timer = renderer.debug_timer.readPrecise();
+
         var command = renderer.command_encoder.finish(null);
         renderer.command_encoder.release();
         renderer.queue.submit(&[_]*gpu.CommandBuffer{command});
         command.release();
         renderer.core.swapChain().present();
         renderer.back_buffer_view.release();
+
+        std.log.info("Renderer gpu time: {d} ms", .{@intToFloat(f32, renderer.debug_timer.readPrecise() - gpu_timer) / @intToFloat(f32, std.time.ns_per_ms)});
 
         renderer.image_renderer.old_index = 0;
         renderer.image_renderer.index = 0;
@@ -106,6 +134,12 @@ pub const Renderer = struct {
         renderer.colored_renderer.index = 0;
 
         renderer.re_draw = false;
+
+        std.log.info("Renderer end time: {d} ms", .{@intToFloat(f32, renderer.debug_timer.lapPrecise()) / @intToFloat(f32, std.time.ns_per_ms)});
+        std.log.info("Renderer colored vertices: {d}", .{renderer.colored_renderer.vertices_len});
+        std.log.info("Renderer images vertices: {d}", .{renderer.image_renderer.vertices_len});
+        std.log.info("Renderer colored draws: {d}", .{renderer.debug_draw_colored});
+        std.log.info("Renderer images draws: {d}", .{renderer.debug_draw_image});
     }
 
     pub fn deinit(renderer: *Renderer) void {
