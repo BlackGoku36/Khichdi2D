@@ -187,6 +187,11 @@ pub const Renderer = struct {
         renderer.colored_renderer.setColor(r, g, b, a);
         renderer.image_renderer.setColor(r, g, b, a);
     }
+
+    pub fn resetColor(renderer: *Renderer) void {
+        if(!renderer.re_draw) return;
+        renderer.setColor(0.0, 0.0, 0.0, 1.0);
+    }
 };
 
 pub const ImageVertex = extern struct {

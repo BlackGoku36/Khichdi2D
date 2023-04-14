@@ -53,7 +53,7 @@ pub fn update(app: *App) !bool {
 
     app.renderer.begin();
 
-    for (0..4000) |_| {
+    for (0..4000) |i| {
         const x = app.random_float(0.0, width);
         const y = app.random_float(0.0, height);
 
