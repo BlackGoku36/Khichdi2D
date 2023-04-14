@@ -493,7 +493,7 @@ pub const ColoredRenderer = struct {
     half_window_h: f32,
 
     pub fn init(core: *mach.Core, queue: *gpu.Queue, allocator: std.mem.Allocator) !ColoredRenderer {
-        const shader_module = core.device().createShaderModuleWGSL("shader.wgsl", @embedFile("shader.wgsl"));
+        const shader_module = core.device().createShaderModuleWGSL("color_shader.wgsl", @embedFile("color_shader.wgsl"));
 
         const blend = gpu.BlendState{
             .color = .{
