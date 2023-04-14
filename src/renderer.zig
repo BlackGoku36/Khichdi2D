@@ -187,7 +187,7 @@ pub const Renderer = struct {
     }
 
     pub fn resetColor(renderer: *Renderer) void {
-        if(!renderer.re_draw) return;
+        if (!renderer.re_draw) return;
         renderer.setColor(0.0, 0.0, 0.0, 1.0);
     }
 };
@@ -252,9 +252,9 @@ pub const ImageRenderer = struct {
             .usage = .{ .index = true, .copy_dst = true },
             .size = @sizeOf(u32) * max_indices_images,
         });
-        
+
         var vertices = try std.ArrayList(ImageVertex).initCapacity(allocator, max_vertices_images);
-        
+
         var indices = try std.ArrayList(u32).initCapacity(allocator, max_indices_images);
         defer indices.deinit();
 
