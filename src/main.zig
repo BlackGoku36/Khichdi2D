@@ -1,6 +1,7 @@
 const std = @import("std");
 const mach = @import("mach");
 const gpu = mach.gpu;
+const zigimg = @import("zigimg");
 
 const Renderer = @import("renderer.zig").Renderer;
 
@@ -11,12 +12,15 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 core: mach.Core,
 renderer: Renderer,
 random: std.rand.DefaultPrng,
+texture: zigimg.Image = undefined,
 
 pub fn init(app: *App) !void {
     try app.core.init(gpa.allocator(), .{});
     app.core.setTitle("Khichdi2D");
 
-    app.renderer = try Renderer.init(&app.core, gpa.allocator());
+    app.texture = try zigimg.Image.fromFilePath(gpa.allocator(), "src/mach.png");
+    defer app.texture.deinit();
+    app.renderer = try Renderer.init(&app.core, gpa.allocator(), app.texture);
     app.random = std.rand.DefaultPrng.init(42);
 }
 
@@ -53,17 +57,17 @@ pub fn update(app: *App) !bool {
 
     app.renderer.begin();
 
-    for (0..4000) |i| {
+    for (0..4000) |_| {
         const x = app.random_float(0.0, width);
         const y = app.random_float(0.0, height);
 
-        if (i % 2 == 0) {
-            app.renderer.setColor(0.722, 0.733, 0.149, 0.7);
-            app.renderer.drawFilledRectangle(x, y, 10.0, 10.0);
-        } else {
-            app.renderer.setColor(1.0, 1.0, 1.0, 0.7);
-            app.renderer.drawScaledImage(x, y, 50.0, 50.0);
-        }
+        // if (i % 2 == 0) {
+        // app.renderer.setColor(0.722, 0.733, 0.149, 0.7);
+        // app.renderer.drawFilledRectangle(x, y, 10.0, 10.0);
+        // } else {
+        app.renderer.setColor(1.0, 1.0, 1.0, 0.7);
+        app.renderer.drawScaledImage(x, y, 50.0, 50.0);
+        // }
     }
 
     // app.renderer.setColor(0.235, 0.22, 0.212, 1.0);

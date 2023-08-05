@@ -3,11 +3,17 @@ const mach = @import("mach");
 const zigimg = @import("zigimg");
 const gpu = mach.gpu;
 
-const raw_img = @embedFile("mach.png");
+//const raw_img = @embedFile("mach.png");
 
 const RendererError = error{
     BufferCapacityExceeded,
 };
+
+pub fn catchRendererError(renderer_error: RendererError) void {
+    switch (renderer_error) {
+        error.BufferCapacityExceeded => std.debug.panic("Vertex Buffer capacity exceeded. You may want to increase max_images/max_colored.", .{}),
+    }
+}
 
 const State = enum { colored, image };
 
@@ -32,11 +38,11 @@ pub const Renderer = struct {
     debug_draw_image: u32 = 0,
     debug_draw_colored: u32 = 0,
 
-    pub fn init(core: *mach.Core, allocator: std.mem.Allocator) !Renderer {
+    pub fn init(core: *mach.Core, allocator: std.mem.Allocator, image: zigimg.Image) !Renderer {
         var debug_timer = try mach.Timer.start();
 
         var queue = core.device().getQueue();
-        var image_renderer = try ImageRenderer.init(core, queue, allocator);
+        var image_renderer = try ImageRenderer.init(core, queue, allocator, image);
         var colored_renderer = try ColoredRenderer.init(core, queue, allocator);
 
         std.log.info("Renderer init time: {d} ms", .{@intToFloat(f32, debug_timer.lapPrecise()) / @intToFloat(f32, std.time.ns_per_ms)});
@@ -157,7 +163,7 @@ pub const Renderer = struct {
 
     pub fn drawScaledImage(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32) void {
         if (renderer.state == .colored) renderer.endColoredRenderer();
-        renderer.image_renderer.drawScaledImage(x, y, width, height);
+        renderer.image_renderer.drawScaledImage(x, y, width, height) catch |err| catchRendererError(err);
     }
 
     pub inline fn drawScaledSubImage(renderer: *Renderer, x: f32, y: f32, width: f32, height: f32, x1: f32, y1: f32, width1: f32, height1: f32) void {
@@ -215,7 +221,7 @@ pub const ImageRenderer = struct {
     half_window_w: f32,
     half_window_h: f32,
 
-    pub fn init(core: *mach.Core, queue: *gpu.Queue, allocator: std.mem.Allocator) !ImageRenderer {
+    pub fn init(core: *mach.Core, queue: *gpu.Queue, allocator: std.mem.Allocator, image: zigimg.Image) !ImageRenderer {
         const shader_module = core.device().createShaderModuleWGSL("image_shader.wgsl", @embedFile("image_shader.wgsl"));
 
         const blend = gpu.BlendState{
@@ -285,8 +291,9 @@ pub const ImageRenderer = struct {
 
         var pipeline = core.device().createRenderPipeline(&pipeline_desc);
 
-        var img = try zigimg.Image.fromMemory(allocator, raw_img);
-        defer img.deinit();
+        //var img = try zigimg.Image.fromMemory(allocator, raw_img);
+        //defer img.deinit();
+        var img: zigimg.Image = image;
 
         const img_size = gpu.Extent3D{ .width = @intCast(u32, img.width), .height = @intCast(u32, img.height) };
         const texture = core.device().createTexture(&.{
@@ -404,11 +411,11 @@ pub const ImageRenderer = struct {
         renderer.indices_len += 6;
     }
 
-    pub fn drawScaledImage(renderer: *ImageRenderer, x: f32, y: f32, width: f32, height: f32) void {
+    pub fn drawScaledImage(renderer: *ImageRenderer, x: f32, y: f32, width: f32, height: f32) !void {
         renderer.index += 6;
         if (!renderer.re_draw) return;
 
-        std.debug.assert(renderer.vertices.items.len <= max_vertices_images);
+        if (renderer.vertices.items.len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
         const new_x = x / renderer.half_window_w - 1.0;
         const new_y = 1.0 - y / renderer.half_window_h;
@@ -427,7 +434,7 @@ pub const ImageRenderer = struct {
         renderer.index += 6;
         if (!renderer.re_draw) return;
 
-        std.debug.assert(renderer.vertices.items.len <= max_vertices_images);
+        if (renderer.vertices.items.len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
         const tex_width: f32 = @intToFloat(f32, renderer.texture.getWidth());
         const tex_height: f32 = @intToFloat(f32, renderer.texture.getHeight());
