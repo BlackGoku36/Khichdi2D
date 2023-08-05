@@ -1,6 +1,6 @@
 const std = @import("std");
-const mach = @import("mach");
-const gpu = mach.gpu;
+const core = @import("core");
+const gpu = core.gpu;
 const zigimg = @import("zigimg");
 
 const Renderer = @import("renderer.zig").Renderer;
@@ -9,24 +9,24 @@ pub const App = @This();
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
-core: mach.Core,
+// core: mach.core,
 renderer: Renderer,
 random: std.rand.DefaultPrng,
 texture: zigimg.Image = undefined,
 
 pub fn init(app: *App) !void {
-    try app.core.init(gpa.allocator(), .{});
-    app.core.setTitle("Khichdi2D");
+    try core.init(.{});
+    core.setTitle("Khichdi2D");
 
     app.texture = try zigimg.Image.fromFilePath(gpa.allocator(), "src/mach.png");
     defer app.texture.deinit();
-    app.renderer = try Renderer.init(&app.core, gpa.allocator(), app.texture);
+    app.renderer = try Renderer.init(gpa.allocator(), app.texture);
     app.random = std.rand.DefaultPrng.init(42);
 }
 
 pub fn deinit(app: *App) void {
     defer _ = gpa.deinit();
-    defer app.core.deinit();
+    defer core.deinit();
     app.renderer.deinit();
 }
 
@@ -37,7 +37,7 @@ pub fn random_float(app: *App, min: f32, max: f32) f32 {
 }
 
 pub fn update(app: *App) !bool {
-    var iter = app.core.pollEvents();
+    var iter = core.pollEvents();
     while (iter.next()) |event| {
         switch (event) {
             .close => return true,
@@ -52,8 +52,8 @@ pub fn update(app: *App) !bool {
 
     app.renderer.re_draw = true;
 
-    const width = @intToFloat(f32, app.core.size().width);
-    const height = @intToFloat(f32, app.core.size().height);
+    const width = @as(f32, @floatFromInt(core.size().width));
+    const height = @as(f32, @floatFromInt(core.size().height));
 
     app.renderer.begin();
 

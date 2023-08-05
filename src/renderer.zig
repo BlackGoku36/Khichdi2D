@@ -1,7 +1,7 @@
 const std = @import("std");
-const mach = @import("mach");
+const core = @import("core");
 const zigimg = @import("zigimg");
-const gpu = mach.gpu;
+const gpu = core.gpu;
 
 //const raw_img = @embedFile("mach.png");
 
@@ -25,7 +25,7 @@ const max_vertices_images: u32 = max_images * 4;
 const max_indices_images: u32 = max_images * 6;
 
 pub const Renderer = struct {
-    core: *mach.Core,
+    // core: *core,
     queue: *gpu.Queue,
     image_renderer: ImageRenderer,
     colored_renderer: ColoredRenderer,
@@ -34,20 +34,20 @@ pub const Renderer = struct {
     back_buffer_view: *gpu.TextureView = undefined,
     state: State = .colored,
     re_draw: bool = false,
-    debug_timer: mach.Timer,
+    debug_timer: core.Timer,
     debug_draw_image: u32 = 0,
     debug_draw_colored: u32 = 0,
 
-    pub fn init(core: *mach.Core, allocator: std.mem.Allocator, image: zigimg.Image) !Renderer {
-        var debug_timer = try mach.Timer.start();
+    pub fn init(allocator: std.mem.Allocator, image: zigimg.Image) !Renderer {
+        var debug_timer = try core.Timer.start();
 
-        var queue = core.device().getQueue();
-        var image_renderer = try ImageRenderer.init(core, queue, allocator, image);
-        var colored_renderer = try ColoredRenderer.init(core, queue, allocator);
+        var queue = core.device.getQueue();
+        var image_renderer = try ImageRenderer.init(queue, allocator, image);
+        var colored_renderer = try ColoredRenderer.init(queue, allocator);
 
-        std.log.info("Renderer init time: {d} ms", .{@intToFloat(f32, debug_timer.lapPrecise()) / @intToFloat(f32, std.time.ns_per_ms)});
+        std.log.info("Renderer init time: {d} ms", .{@as(f32, @floatFromInt(debug_timer.lapPrecise())) / @as(f32, @floatFromInt(std.time.ns_per_ms))});
 
-        return Renderer{ .core = core, .queue = queue, .image_renderer = image_renderer, .colored_renderer = colored_renderer, .debug_timer = debug_timer };
+        return Renderer{.queue = queue, .image_renderer = image_renderer, .colored_renderer = colored_renderer, .debug_timer = debug_timer };
     }
 
     pub fn begin(renderer: *Renderer) void {
@@ -56,14 +56,14 @@ pub const Renderer = struct {
         renderer.image_renderer.re_draw = renderer.re_draw;
         renderer.colored_renderer.re_draw = renderer.re_draw;
 
-        renderer.back_buffer_view = renderer.core.swapChain().getCurrentTextureView();
+        renderer.back_buffer_view = core.swap_chain.getCurrentTextureView().?;
         const color_attachment = gpu.RenderPassColorAttachment{
             .view = renderer.back_buffer_view,
             .clear_value = std.mem.zeroes(gpu.Color),
             .load_op = .clear,
             .store_op = .store,
         };
-        renderer.command_encoder = renderer.core.device().createCommandEncoder(null);
+        renderer.command_encoder = core.device.createCommandEncoder(null);
         const render_pass_info = gpu.RenderPassDescriptor.init(.{
             .color_attachments = &.{color_attachment},
         });
@@ -76,9 +76,9 @@ pub const Renderer = struct {
             renderer.image_renderer.resetVertIndexData();
             renderer.colored_renderer.resetVertIndexData();
 
-            const window_size = renderer.core.size();
-            const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
-            const half_window_h = @intToFloat(f32, window_size.height) * 0.5;
+            const window_size = core.size();
+            const half_window_w = @as(f32, @floatFromInt(window_size.width)) * 0.5;
+            const half_window_h = @as(f32, @floatFromInt(window_size.height)) * 0.5;
             renderer.image_renderer.half_window_w = half_window_w;
             renderer.image_renderer.half_window_h = half_window_h;
             renderer.colored_renderer.half_window_w = half_window_w;
@@ -86,7 +86,7 @@ pub const Renderer = struct {
         }
 
         std.log.info("---------------------------", .{});
-        std.log.info("Renderer begin time: {d} ms", .{@intToFloat(f32, renderer.debug_timer.lapPrecise()) / @intToFloat(f32, std.time.ns_per_ms)});
+        std.log.info("Renderer begin time: {d} ms", .{@as(f32, @floatFromInt(renderer.debug_timer.lapPrecise())) / @as(f32, @floatFromInt(std.time.ns_per_ms))});
     }
 
     fn endImageRenderer(renderer: *Renderer) void {
@@ -106,7 +106,7 @@ pub const Renderer = struct {
     }
 
     pub fn end(renderer: *Renderer) void {
-        std.log.info("Renderer paint time: {d} ms", .{@intToFloat(f32, renderer.debug_timer.lapPrecise()) / @intToFloat(f32, std.time.ns_per_ms)});
+        std.log.info("Renderer paint time: {d} ms", .{@as(f32, @floatFromInt(renderer.debug_timer.lapPrecise())) / @as(f32, @floatFromInt(std.time.ns_per_ms))});
 
         renderer.endImageRenderer();
         renderer.endColoredRenderer();
@@ -126,10 +126,10 @@ pub const Renderer = struct {
         renderer.command_encoder.release();
         renderer.queue.submit(&[_]*gpu.CommandBuffer{command});
         command.release();
-        renderer.core.swapChain().present();
+        core.swap_chain.present();
         renderer.back_buffer_view.release();
 
-        std.log.info("Renderer gpu time: {d} ms", .{@intToFloat(f32, renderer.debug_timer.readPrecise() - gpu_timer) / @intToFloat(f32, std.time.ns_per_ms)});
+        std.log.info("Renderer gpu time: {d} ms", .{@as(f32, @floatFromInt(renderer.debug_timer.readPrecise() - gpu_timer)) / @as(f32, @floatFromInt(std.time.ns_per_ms))});
 
         renderer.image_renderer.old_index = 0;
         renderer.image_renderer.index = 0;
@@ -139,7 +139,7 @@ pub const Renderer = struct {
 
         renderer.re_draw = false;
 
-        std.log.info("Renderer end time: {d} ms", .{@intToFloat(f32, renderer.debug_timer.lapPrecise()) / @intToFloat(f32, std.time.ns_per_ms)});
+        std.log.info("Renderer end time: {d} ms", .{@as(f32, @floatFromInt(renderer.debug_timer.lapPrecise())) / @as(f32, @floatFromInt(std.time.ns_per_ms))});
         std.log.info("Renderer colored vertices: {d}", .{renderer.colored_renderer.vertices.items.len});
         std.log.info("Renderer images vertices: {d}", .{renderer.image_renderer.vertices.items.len});
         std.log.info("Renderer colored draws: {d}", .{renderer.debug_draw_colored});
@@ -205,7 +205,7 @@ pub const ImageVertex = extern struct {
 };
 
 pub const ImageRenderer = struct {
-    core: *mach.Core,
+    // core: *core,
     pipeline: *gpu.RenderPipeline,
     queue: *gpu.Queue,
     vertex_buffer: *gpu.Buffer,
@@ -221,8 +221,8 @@ pub const ImageRenderer = struct {
     half_window_w: f32,
     half_window_h: f32,
 
-    pub fn init(core: *mach.Core, queue: *gpu.Queue, allocator: std.mem.Allocator, image: zigimg.Image) !ImageRenderer {
-        const shader_module = core.device().createShaderModuleWGSL("image_shader.wgsl", @embedFile("image_shader.wgsl"));
+    pub fn init(queue: *gpu.Queue, allocator: std.mem.Allocator, image: zigimg.Image) !ImageRenderer {
+        const shader_module = core.device.createShaderModuleWGSL("image_shader.wgsl", @embedFile("image_shader.wgsl"));
 
         const blend = gpu.BlendState{
             .color = .{
@@ -231,7 +231,7 @@ pub const ImageRenderer = struct {
                 .dst_factor = .one_minus_src_alpha,
             },
         };
-        const color_target = gpu.ColorTargetState{ .format = core.descriptor().format, .blend = &blend, .write_mask = gpu.ColorWriteMaskFlags.all };
+        const color_target = gpu.ColorTargetState{ .format = core.descriptor.format, .blend = &blend, .write_mask = gpu.ColorWriteMaskFlags.all };
 
         const fragment = gpu.FragmentState.init(.{ .module = shader_module, .entry_point = "frag_main", .targets = &.{color_target} });
 
@@ -247,13 +247,13 @@ pub const ImageRenderer = struct {
             .attributes = &vertex_attributes,
         });
 
-        const vertex_buffer = core.device().createBuffer(&.{
+        const vertex_buffer = core.device.createBuffer(&.{
             .label = "image_vertex_buffer",
             .usage = .{ .vertex = true, .copy_dst = true },
             .size = @sizeOf(ImageVertex) * max_vertices_images,
         });
 
-        const index_buffer = core.device().createBuffer(&.{
+        const index_buffer = core.device.createBuffer(&.{
             .label = "image_index_buffer",
             .usage = .{ .index = true, .copy_dst = true },
             .size = @sizeOf(u32) * max_indices_images,
@@ -289,14 +289,14 @@ pub const ImageRenderer = struct {
             .vertex = vertex,
         };
 
-        var pipeline = core.device().createRenderPipeline(&pipeline_desc);
+        var pipeline = core.device.createRenderPipeline(&pipeline_desc);
 
         //var img = try zigimg.Image.fromMemory(allocator, raw_img);
         //defer img.deinit();
         var img: zigimg.Image = image;
 
-        const img_size = gpu.Extent3D{ .width = @intCast(u32, img.width), .height = @intCast(u32, img.height) };
-        const texture = core.device().createTexture(&.{
+        const img_size = gpu.Extent3D{ .width = @as(u32, @intCast(img.width)), .height = @as(u32, @intCast(img.height)) };
+        const texture = core.device.createTexture(&.{
             .label = "mach_texture",
             .size = img_size,
             .format = .rgba8_unorm,
@@ -307,11 +307,11 @@ pub const ImageRenderer = struct {
             },
         });
         const texture_data_layout = gpu.Texture.DataLayout{
-            .bytes_per_row = @intCast(u32, img.width * 4),
-            .rows_per_image = @intCast(u32, img.height),
+            .bytes_per_row = @as(u32, @intCast(img.width * 4)),
+            .rows_per_image = @as(u32, @intCast(img.height)),
         };
 
-        const sampler = core.device().createSampler(&.{
+        const sampler = core.device.createSampler(&.{
             .mag_filter = .linear,
             .min_filter = .linear,
         });
@@ -326,16 +326,15 @@ pub const ImageRenderer = struct {
             else => @panic("unsupported image color format"),
         }
 
-        const bind_group = core.device().createBindGroup(&gpu.BindGroup.Descriptor.init(.{ .layout = pipeline.getBindGroupLayout(0), .entries = &.{ gpu.BindGroup.Entry.sampler(0, sampler), gpu.BindGroup.Entry.textureView(1, texture.createView(&gpu.TextureView.Descriptor{})) } }));
+        const bind_group = core.device.createBindGroup(&gpu.BindGroup.Descriptor.init(.{ .layout = pipeline.getBindGroupLayout(0), .entries = &.{ gpu.BindGroup.Entry.sampler(0, sampler), gpu.BindGroup.Entry.textureView(1, texture.createView(&gpu.TextureView.Descriptor{})) } }));
 
         shader_module.release();
 
         const window_size = core.size();
-        const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
-        const half_window_h = @intToFloat(f32, window_size.height) * 0.5;
+        const half_window_w = @as(f32, @floatFromInt(window_size.width)) * 0.5;
+        const half_window_h = @as(f32, @floatFromInt(window_size.height)) * 0.5;
 
         return ImageRenderer{
-            .core = core,
             .pipeline = pipeline,
             .queue = queue,
             .vertices = vertices,
@@ -373,8 +372,8 @@ pub const ImageRenderer = struct {
 
         const new_x = x / renderer.half_window_w - 1.0;
         const new_y = 1.0 - y / renderer.half_window_h;
-        const new_width = @intToFloat(f32, renderer.texture.getWidth()) / renderer.half_window_w;
-        const new_height = @intToFloat(f32, renderer.texture.getHeight()) / renderer.half_window_h;
+        const new_width = @as(f32, @floatFromInt(renderer.texture.getWidth())) / renderer.half_window_w;
+        const new_height = @as(f32, @floatFromInt(renderer.texture.getHeight())) / renderer.half_window_h;
 
         renderer.vertices.appendAssumeCapacity(.{ .pos = .{ new_x + new_width, new_y }, .uv = .{ 1.0, 0.0 }, .col = renderer.color });
         renderer.vertices.appendAssumeCapacity(.{ .pos = .{ new_x, new_y }, .uv = .{ 0.0, 0.0 }, .col = renderer.color });
@@ -390,8 +389,8 @@ pub const ImageRenderer = struct {
 
         std.debug.assert(renderer.vertices.items.len <= max_vertices_images);
 
-        const tex_width: f32 = @intToFloat(f32, renderer.texture.getWidth());
-        const tex_height: f32 = @intToFloat(f32, renderer.texture.getHeight());
+        const tex_width: f32 = @as(f32, @floatFromInt(renderer.texture.getWidth()));
+        const tex_height: f32 = @as(f32, @floatFromInt(renderer.texture.getHeight()));
 
         const new_x = x / renderer.half_window_w - 1.0;
         const new_y = 1.0 - y / renderer.half_window_h;
@@ -436,8 +435,8 @@ pub const ImageRenderer = struct {
 
         if (renderer.vertices.items.len >= max_vertices_images) return RendererError.BufferCapacityExceeded;
 
-        const tex_width: f32 = @intToFloat(f32, renderer.texture.getWidth());
-        const tex_height: f32 = @intToFloat(f32, renderer.texture.getHeight());
+        const tex_width: f32 = @as(f32, @floatFromInt(renderer.texture.getWidth()));
+        const tex_height: f32 = @as(f32, @floatFromInt(renderer.texture.getHeight()));
 
         const new_x = x / renderer.half_window_w - 1.0;
         const new_y = 1.0 - y / renderer.half_window_h;
@@ -485,7 +484,7 @@ pub const ColorVertex = extern struct {
 };
 
 pub const ColoredRenderer = struct {
-    core: *mach.Core,
+    // core: *core,
     pipeline: *gpu.RenderPipeline,
     queue: *gpu.Queue,
     vertex_buffer: *gpu.Buffer,
@@ -499,8 +498,8 @@ pub const ColoredRenderer = struct {
     half_window_w: f32,
     half_window_h: f32,
 
-    pub fn init(core: *mach.Core, queue: *gpu.Queue, allocator: std.mem.Allocator) !ColoredRenderer {
-        const shader_module = core.device().createShaderModuleWGSL("color_shader.wgsl", @embedFile("color_shader.wgsl"));
+    pub fn init(queue: *gpu.Queue, allocator: std.mem.Allocator) !ColoredRenderer {
+        const shader_module = core.device.createShaderModuleWGSL("color_shader.wgsl", @embedFile("color_shader.wgsl"));
 
         const blend = gpu.BlendState{
             .color = .{
@@ -510,7 +509,7 @@ pub const ColoredRenderer = struct {
             },
         };
 
-        const color_target = gpu.ColorTargetState{ .format = core.descriptor().format, .blend = &blend, .write_mask = gpu.ColorWriteMaskFlags.all };
+        const color_target = gpu.ColorTargetState{ .format = core.descriptor.format, .blend = &blend, .write_mask = gpu.ColorWriteMaskFlags.all };
 
         const fragment = gpu.FragmentState.init(.{ .module = shader_module, .entry_point = "frag_main", .targets = &.{color_target} });
 
@@ -528,13 +527,13 @@ pub const ColoredRenderer = struct {
             .attributes = &vertex_attributes,
         });
 
-        const vertex_buffer = core.device().createBuffer(&.{
+        const vertex_buffer = core.device.createBuffer(&.{
             .label = "colored_vertex_buffer",
             .usage = .{ .vertex = true, .copy_dst = true },
             .size = @sizeOf(ColorVertex) * max_vertices_colored,
         });
 
-        const index_buffer = core.device().createBuffer(&.{
+        const index_buffer = core.device.createBuffer(&.{
             .label = "colored_index_buffer",
             .usage = .{ .index = true, .copy_dst = true },
             .size = @sizeOf(u32) * max_indices_colored,
@@ -551,16 +550,15 @@ pub const ColoredRenderer = struct {
             .vertex = vertex,
         };
 
-        var pipeline = core.device().createRenderPipeline(&pipeline_desc);
+        var pipeline = core.device.createRenderPipeline(&pipeline_desc);
 
         shader_module.release();
 
         const window_size = core.size();
-        const half_window_w = @intToFloat(f32, window_size.width) * 0.5;
-        const half_window_h = @intToFloat(f32, window_size.height) * 0.5;
+        const half_window_w = @as(f32, @floatFromInt(window_size.width)) * 0.5;
+        const half_window_h = @as(f32, @floatFromInt(window_size.height)) * 0.5;
 
         return ColoredRenderer{
-            .core = core,
             .pipeline = pipeline,
             .queue = queue,
             .vertices = vertices,
@@ -612,7 +610,7 @@ pub const ColoredRenderer = struct {
         renderer.vertices.appendAssumeCapacity(.{ .pos = .{ new_x, new_y - new_height }, .col = renderer.color });
         renderer.vertices.appendAssumeCapacity(.{ .pos = .{ new_x + new_width, new_y - new_height }, .col = renderer.color });
 
-        const vert_len = @intCast(u32, renderer.vertices.items.len);
+        const vert_len = @as(u32, @intCast(renderer.vertices.items.len));
         renderer.indices.appendAssumeCapacity(vert_len - 4);
         renderer.indices.appendAssumeCapacity(vert_len - 4 + 1);
         renderer.indices.appendAssumeCapacity(vert_len - 4 + 2);
@@ -640,7 +638,7 @@ pub const ColoredRenderer = struct {
         renderer.vertices.appendAssumeCapacity(.{ .pos = .{ new_x2, new_y2 }, .col = renderer.color });
         renderer.vertices.appendAssumeCapacity(.{ .pos = .{ new_x3, new_y3 }, .col = renderer.color });
 
-        const vert_len = @intCast(u32, renderer.vertices.items.len);
+        const vert_len = @as(u32, @intCast(renderer.vertices.items.len));
         renderer.indices.appendAssumeCapacity(vert_len - 3);
         renderer.indices.appendAssumeCapacity(vert_len - 3 + 1);
         renderer.indices.appendAssumeCapacity(vert_len - 3 + 2);
