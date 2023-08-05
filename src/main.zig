@@ -9,7 +9,6 @@ pub const App = @This();
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
-// core: mach.core,
 renderer: Renderer,
 random: std.rand.DefaultPrng,
 texture: zigimg.Image = undefined,

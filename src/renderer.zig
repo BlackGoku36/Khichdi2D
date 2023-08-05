@@ -3,8 +3,6 @@ const core = @import("core");
 const zigimg = @import("zigimg");
 const gpu = core.gpu;
 
-//const raw_img = @embedFile("mach.png");
-
 const RendererError = error{
     BufferCapacityExceeded,
 };
@@ -25,8 +23,6 @@ const max_vertices_images: u32 = max_images * 4;
 const max_indices_images: u32 = max_images * 6;
 
 pub const Renderer = struct {
-    // core: *core,
-    queue: *gpu.Queue,
     image_renderer: ImageRenderer,
     colored_renderer: ColoredRenderer,
     command_encoder: *gpu.CommandEncoder = undefined,
@@ -41,13 +37,12 @@ pub const Renderer = struct {
     pub fn init(allocator: std.mem.Allocator, image: zigimg.Image) !Renderer {
         var debug_timer = try core.Timer.start();
 
-        var queue = core.device.getQueue();
-        var image_renderer = try ImageRenderer.init(queue, allocator, image);
-        var colored_renderer = try ColoredRenderer.init(queue, allocator);
+        var image_renderer = try ImageRenderer.init(allocator, image);
+        var colored_renderer = try ColoredRenderer.init(allocator);
 
         std.log.info("Renderer init time: {d} ms", .{@as(f32, @floatFromInt(debug_timer.lapPrecise())) / @as(f32, @floatFromInt(std.time.ns_per_ms))});
 
-        return Renderer{.queue = queue, .image_renderer = image_renderer, .colored_renderer = colored_renderer, .debug_timer = debug_timer };
+        return Renderer{.image_renderer = image_renderer, .colored_renderer = colored_renderer, .debug_timer = debug_timer };
     }
 
     pub fn begin(renderer: *Renderer) void {
@@ -115,16 +110,16 @@ pub const Renderer = struct {
         renderer.pass.release();
 
         if (renderer.re_draw) {
-            renderer.queue.writeBuffer(renderer.image_renderer.vertex_buffer, 0, renderer.image_renderer.vertices.items[0..]);
-            renderer.queue.writeBuffer(renderer.colored_renderer.vertex_buffer, 0, renderer.colored_renderer.vertices.items[0..]);
-            renderer.queue.writeBuffer(renderer.colored_renderer.index_buffer, 0, renderer.colored_renderer.indices.items[0..]);
+            core.queue.writeBuffer(renderer.image_renderer.vertex_buffer, 0, renderer.image_renderer.vertices.items[0..]);
+            core.queue.writeBuffer(renderer.colored_renderer.vertex_buffer, 0, renderer.colored_renderer.vertices.items[0..]);
+            core.queue.writeBuffer(renderer.colored_renderer.index_buffer, 0, renderer.colored_renderer.indices.items[0..]);
         }
 
         var gpu_timer = renderer.debug_timer.readPrecise();
 
         var command = renderer.command_encoder.finish(null);
         renderer.command_encoder.release();
-        renderer.queue.submit(&[_]*gpu.CommandBuffer{command});
+        core.queue.submit(&[_]*gpu.CommandBuffer{command});
         command.release();
         core.swap_chain.present();
         renderer.back_buffer_view.release();
@@ -205,9 +200,7 @@ pub const ImageVertex = extern struct {
 };
 
 pub const ImageRenderer = struct {
-    // core: *core,
     pipeline: *gpu.RenderPipeline,
-    queue: *gpu.Queue,
     vertex_buffer: *gpu.Buffer,
     index_buffer: *gpu.Buffer,
     vertices: std.ArrayList(ImageVertex),
@@ -221,7 +214,7 @@ pub const ImageRenderer = struct {
     half_window_w: f32,
     half_window_h: f32,
 
-    pub fn init(queue: *gpu.Queue, allocator: std.mem.Allocator, image: zigimg.Image) !ImageRenderer {
+    pub fn init(allocator: std.mem.Allocator, image: zigimg.Image) !ImageRenderer {
         const shader_module = core.device.createShaderModuleWGSL("image_shader.wgsl", @embedFile("image_shader.wgsl"));
 
         const blend = gpu.BlendState{
@@ -276,7 +269,7 @@ pub const ImageRenderer = struct {
             indices.appendAssumeCapacity(j);
             j += 4;
         }
-        queue.writeBuffer(index_buffer, 0, indices.items[0..]);
+        core.queue.writeBuffer(index_buffer, 0, indices.items[0..]);
 
         const vertex = gpu.VertexState.init(.{
             .module = shader_module,
@@ -291,8 +284,6 @@ pub const ImageRenderer = struct {
 
         var pipeline = core.device.createRenderPipeline(&pipeline_desc);
 
-        //var img = try zigimg.Image.fromMemory(allocator, raw_img);
-        //defer img.deinit();
         var img: zigimg.Image = image;
 
         const img_size = gpu.Extent3D{ .width = @as(u32, @intCast(img.width)), .height = @as(u32, @intCast(img.height)) };
@@ -317,11 +308,11 @@ pub const ImageRenderer = struct {
         });
 
         switch (img.pixels) {
-            .rgba32 => |pixels| queue.writeTexture(&.{ .texture = texture }, &texture_data_layout, &img_size, pixels),
+            .rgba32 => |pixels| core.queue.writeTexture(&.{ .texture = texture }, &texture_data_layout, &img_size, pixels),
             .rgb24 => |pixels| {
                 const data = try rgb24ToRgba32(allocator, pixels);
                 defer data.deinit(allocator);
-                queue.writeTexture(&.{ .texture = texture }, &texture_data_layout, &img_size, data.rgba32);
+                core.queue.writeTexture(&.{ .texture = texture }, &texture_data_layout, &img_size, data.rgba32);
             },
             else => @panic("unsupported image color format"),
         }
@@ -336,7 +327,6 @@ pub const ImageRenderer = struct {
 
         return ImageRenderer{
             .pipeline = pipeline,
-            .queue = queue,
             .vertices = vertices,
             .vertex_buffer = vertex_buffer,
             .index_buffer = index_buffer,
@@ -484,9 +474,7 @@ pub const ColorVertex = extern struct {
 };
 
 pub const ColoredRenderer = struct {
-    // core: *core,
     pipeline: *gpu.RenderPipeline,
-    queue: *gpu.Queue,
     vertex_buffer: *gpu.Buffer,
     index_buffer: *gpu.Buffer,
     vertices: std.ArrayList(ColorVertex),
@@ -498,7 +486,7 @@ pub const ColoredRenderer = struct {
     half_window_w: f32,
     half_window_h: f32,
 
-    pub fn init(queue: *gpu.Queue, allocator: std.mem.Allocator) !ColoredRenderer {
+    pub fn init(allocator: std.mem.Allocator) !ColoredRenderer {
         const shader_module = core.device.createShaderModuleWGSL("color_shader.wgsl", @embedFile("color_shader.wgsl"));
 
         const blend = gpu.BlendState{
@@ -560,7 +548,6 @@ pub const ColoredRenderer = struct {
 
         return ColoredRenderer{
             .pipeline = pipeline,
-            .queue = queue,
             .vertices = vertices,
             .indices = indices,
             .vertex_buffer = vertex_buffer,
